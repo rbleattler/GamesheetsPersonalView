@@ -1,0 +1,294 @@
+name: Apply Firestore live score patch
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch app
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('gamesheets_plus.html')
+          raw = p.read_bytes().decode('utf-8')
+          eol = '\r\n' if '\r\n' in raw else '\n'
+          s = raw.replace('\r\n', '\n')
+
+          if '        lastLiveRefreshError: null\n' not in s:
+              if '        lastLiveRefresh: null\n' not in s:
+                  raise RuntimeError('Missing live refresh state anchor')
+              s = s.replace(
+                  '        lastLiveRefresh: null\n',
+                  '        lastLiveRefresh: null,\n        lastLiveRefreshError: null\n',
+                  1
+              )
+
+          old_status = '''function updateLiveRefreshStatus() {
+    const liveCount = visibleLiveGames().length;
+
+    if (!liveCount) {
+        els.liveRefreshStatus.hidden = true;
+        els.liveRefreshStatus.textContent = "";
+        els.liveRefreshStatus.classList.remove("active");
+        return;
+    }
+
+    const checked = state.lastLiveRefresh
+        ? ` · checked ${formatTime(state.lastLiveRefresh)}`
+        : "";
+
+    els.liveRefreshStatus.hidden = false;
+    els.liveRefreshStatus.classList.add("active");
+    els.liveRefreshStatus.textContent =
+        `${liveCount} live · auto-refresh 30s${checked}`;
+}
+'''
+
+          new_status = '''function updateLiveRefreshStatus() {
+    const liveCount = visibleLiveGames().length;
+
+    if (!liveCount) {
+        els.liveRefreshStatus.hidden = true;
+        els.liveRefreshStatus.textContent = "";
+        els.liveRefreshStatus.classList.remove("active");
+        return;
+    }
+
+    let suffix = "";
+
+    if (state.lastLiveRefreshError) {
+        suffix = ` · refresh failed`;
+    }
+    else if (state.lastLiveRefresh) {
+        suffix = ` · checked ${formatTime(state.lastLiveRefresh)}`;
+    }
+
+    els.liveRefreshStatus.hidden = false;
+    els.liveRefreshStatus.classList.add("active");
+    els.liveRefreshStatus.textContent =
+        `${liveCount} live · auto-refresh 30s${suffix}`;
+}
+'''
+
+          if old_status in s:
+              s = s.replace(old_status, new_status, 1)
+          elif 'refresh failed' not in s:
+              raise RuntimeError('Missing live refresh status anchor')
+
+          pattern = re.compile(r'''function normalizeBoxScoreStatus\(value\) \{.*?\n\}\n\nasync function refreshVisibleLiveGames\(\) \{''', re.S)
+          replacement = '''function normalizeLiveStatus(value) {
+    const status = String(value ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .replace(/\\s+/g, " ");
+
+    if (status.includes("progress")) return "in_progress";
+    if (status === "final") return "final";
+    if (status === "scheduled") return "scheduled";
+
+    return status ? status.replace(/\\s+/g, "_") : "";
+}
+
+function scoreValue(value, fallback) {
+    if (value == null || value === "") return fallback;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : value;
+}
+
+function firestoreValue(value) {
+    if (!value || typeof value !== "object") return undefined;
+    if ("nullValue" in value) return null;
+    if ("stringValue" in value) return value.stringValue;
+    if ("integerValue" in value) return Number(value.integerValue);
+    if ("doubleValue" in value) return Number(value.doubleValue);
+    if ("booleanValue" in value) return Boolean(value.booleanValue);
+    if ("timestampValue" in value) return value.timestampValue;
+
+    if (value.mapValue) {
+        const result = {};
+        const fields = value.mapValue.fields || {};
+        for (const [key, child] of Object.entries(fields)) {
+            result[key] = firestoreValue(child);
+        }
+        return result;
+    }
+
+    if (value.arrayValue) {
+        return (value.arrayValue.values || []).map(firestoreValue);
+    }
+
+    return undefined;
+}
+
+function firestoreDocumentData(document) {
+    const result = {};
+    for (const [key, value] of Object.entries(document?.fields || {})) {
+        result[key] = firestoreValue(value);
+    }
+    return result;
+}
+
+function applyLiveSnapshot(game, snapshot) {
+    const refreshed = {
+        ...game,
+        home: { ...game.home },
+        visitor: { ...game.visitor }
+    };
+
+    refreshed.home.goals = scoreValue(snapshot?.homeScore, game.home?.goals);
+    refreshed.visitor.goals = scoreValue(snapshot?.visitorScore, game.visitor?.goals);
+
+    if (snapshot?.homeShots != null) refreshed.home.shots = snapshot.homeShots;
+    if (snapshot?.visitorShots != null) refreshed.visitor.shots = snapshot.visitorShots;
+
+    const freshStatus = normalizeLiveStatus(snapshot?.status);
+    if (freshStatus) refreshed.status = freshStatus;
+
+    return refreshed;
+}
+
+async function fetchFirestoreLiveSnapshot(game) {
+    /*
+     * LIVE SCORE SOURCE NOTE:
+     * unified-games and the legacy box-score response may stay at 0-0 during
+     * an in-progress game. GameSheet's live UI appears to read the season-
+     * scoped Firestore document, where computed.scoreboard.total is updated.
+     * This is best-effort public REST access. If it breaks, preserve the
+     * fallback and revisit this source rather than assuming unified-games is
+     * authoritative for live scores.
+     */
+    const url =
+        `https://firestore.googleapis.com/v1/projects/` +
+        `gamesheet-production/databases/(default)/documents/` +
+        `seasons/${encodeURIComponent(state.seasonId)}/games/` +
+        `${encodeURIComponent(game.gameId)}`;
+
+    const document = await fetchJson(url);
+    const data = firestoreDocumentData(document);
+    const total = data?.computed?.scoreboard?.total;
+
+    if (!total || total.home == null || total.visitor == null) {
+        throw new Error(`Firestore live score unavailable for game ${game.gameId}`);
+    }
+
+    return applyLiveSnapshot(game, {
+        homeScore: total.home,
+        visitorScore: total.visitor,
+        homeShots: data?.computed?.shots?.total?.home,
+        visitorShots: data?.computed?.shots?.total?.visitor,
+        status: data?.computed?.status || data?.data?.game?.status
+    });
+}
+
+async function fetchLegacyBoxScoreSnapshot(game) {
+    const body = await fetchJson(
+        `${API}/useBoxScore/getGameStats/${state.seasonId}/games/` +
+        `${encodeURIComponent(game.gameId)}`
+    );
+
+    let boxScore = dataOf(body);
+    if (Array.isArray(boxScore)) boxScore = boxScore[0];
+    if (!boxScore || typeof boxScore !== "object") {
+        throw new Error(`No box-score data for game ${game.gameId}`);
+    }
+
+    return applyLiveSnapshot(game, {
+        homeScore: boxScore.home?.finalScore,
+        visitorScore: boxScore.visitor?.finalScore,
+        homeShots: boxScore.home?.sog,
+        visitorShots: boxScore.visitor?.sog,
+        status: boxScore.gameStatus
+    });
+}
+
+async function fetchLiveGameSnapshot(game) {
+    try {
+        return await fetchFirestoreLiveSnapshot(game);
+    }
+    catch (firestoreError) {
+        console.warn(
+            `Firestore live refresh failed for game ${game.gameId}; falling back to box score.`,
+            firestoreError
+        );
+        return fetchLegacyBoxScoreSnapshot(game);
+    }
+}
+
+async function refreshVisibleLiveGames() {'''
+
+          if 'function normalizeBoxScoreStatus(value)' in s:
+              s, count = pattern.subn(lambda _m: replacement, s, count=1)
+              if count != 1:
+                  raise RuntimeError(f'Expected one live helper block, replaced {count}')
+          elif 'function fetchFirestoreLiveSnapshot(game)' not in s:
+              raise RuntimeError('Missing live source anchor')
+
+          old_refresh = '''        if (failures.length) {
+            console.warn(
+                `${failures.length} live box-score refresh request(s) failed.`,
+                failures.map(result => result.reason)
+            );
+        }
+
+        state.lastLiveRefresh = new Date();
+'''
+          new_refresh = '''        if (failures.length) {
+            console.warn(
+                `${failures.length} live score refresh request(s) failed.`,
+                failures.map(result => result.reason)
+            );
+        }
+
+        if (refreshedGames.length) {
+            state.lastLiveRefresh = new Date();
+            state.lastLiveRefreshError = failures.length
+                ? `${failures.length} refresh request(s) failed`
+                : null;
+        }
+        else {
+            state.lastLiveRefreshError = "Live score refresh failed";
+        }
+'''
+
+          if old_refresh in s:
+              s = s.replace(old_refresh, new_refresh, 1)
+          elif 'state.lastLiveRefreshError = "Live score refresh failed";' not in s:
+              raise RuntimeError('Missing refresh result anchor')
+
+          output = s.replace('\n', eol) if eol == '\r\n' else s
+          p.write_bytes(output.encode('utf-8'))
+          PY
+      - name: Validate inline JavaScript
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import re
+          s = Path('gamesheets_plus.html').read_text()
+          scripts = re.findall(r'<script>(.*?)</script>', s, flags=re.S)
+          if len(scripts) != 1:
+              raise SystemExit(f'Expected 1 inline script, found {len(scripts)}')
+          Path('/tmp/app.js').write_text(scripts[0])
+          PY
+          node --check /tmp/app.js
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gamesheets_plus.html
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: read live scores from Firestore game state"
+          git push origin HEAD:main
