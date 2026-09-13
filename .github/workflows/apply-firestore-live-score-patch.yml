@@ -1,0 +1,37 @@
+name: Apply Firestore live score patch helper
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply patch
+        run: python tools/apply-firestore-live-score-patch.py
+      - name: Validate inline JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s = Path('gamesheets_plus.html').read_text()
+          scripts = re.findall(r'<script>(.*?)</script>', s, flags=re.S)
+          if len(scripts) != 1:
+              raise SystemExit(f'Expected 1 inline script, found {len(scripts)}')
+          Path('/tmp/app.js').write_text(scripts[0])
+          PY
+          node --check /tmp/app.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gamesheets_plus.html
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: read live scores from Firestore game state"
+          git push origin HEAD:main
