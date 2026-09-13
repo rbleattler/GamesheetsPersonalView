@@ -1255,7 +1255,8 @@ tbody tr.live-game {
         currentView: "schedule",
         livePollTimer: null,
         livePollInFlight: false,
-        lastLiveRefresh: null
+        lastLiveRefresh: null,
+        lastLiveRefreshError: null
     };
 
     const els = {};
@@ -1797,14 +1798,19 @@ function updateLiveRefreshStatus() {
         return;
     }
 
-    const checked = state.lastLiveRefresh
-        ? ` · checked ${formatTime(state.lastLiveRefresh)}`
-        : "";
+    let suffix = "";
+
+    if (state.lastLiveRefreshError) {
+        suffix = ` · refresh failed`;
+    }
+    else if (state.lastLiveRefresh) {
+        suffix = ` · checked ${formatTime(state.lastLiveRefresh)}`;
+    }
 
     els.liveRefreshStatus.hidden = false;
     els.liveRefreshStatus.classList.add("active");
     els.liveRefreshStatus.textContent =
-        `${liveCount} live · auto-refresh 30s${checked}`;
+        `${liveCount} live · auto-refresh 30s${suffix}`;
 }
 
 function mergeRefreshedGames(freshGames) {
@@ -1819,7 +1825,7 @@ function mergeRefreshedGames(freshGames) {
     );
 }
 
-function normalizeBoxScoreStatus(value) {
+function normalizeLiveStatus(value) {
     const status = String(value ?? "")
         .trim()
         .toLowerCase()
@@ -1839,59 +1845,123 @@ function scoreValue(value, fallback) {
     return Number.isFinite(numeric) ? numeric : value;
 }
 
-function applyBoxScoreSnapshot(game, boxScore) {
+function firestoreValue(value) {
+    if (!value || typeof value !== "object") return undefined;
+    if ("nullValue" in value) return null;
+    if ("stringValue" in value) return value.stringValue;
+    if ("integerValue" in value) return Number(value.integerValue);
+    if ("doubleValue" in value) return Number(value.doubleValue);
+    if ("booleanValue" in value) return Boolean(value.booleanValue);
+    if ("timestampValue" in value) return value.timestampValue;
+
+    if (value.mapValue) {
+        const result = {};
+        const fields = value.mapValue.fields || {};
+        for (const [key, child] of Object.entries(fields)) {
+            result[key] = firestoreValue(child);
+        }
+        return result;
+    }
+
+    if (value.arrayValue) {
+        return (value.arrayValue.values || []).map(firestoreValue);
+    }
+
+    return undefined;
+}
+
+function firestoreDocumentData(document) {
+    const result = {};
+    for (const [key, value] of Object.entries(document?.fields || {})) {
+        result[key] = firestoreValue(value);
+    }
+    return result;
+}
+
+function applyLiveSnapshot(game, snapshot) {
     const refreshed = {
         ...game,
         home: { ...game.home },
         visitor: { ...game.visitor }
     };
 
-    if (boxScore?.home) {
-        refreshed.home.goals = scoreValue(
-            boxScore.home.finalScore,
-            game.home?.goals
-        );
+    refreshed.home.goals = scoreValue(snapshot?.homeScore, game.home?.goals);
+    refreshed.visitor.goals = scoreValue(snapshot?.visitorScore, game.visitor?.goals);
 
-        if (boxScore.home.sog != null) {
-            refreshed.home.shots = boxScore.home.sog;
-        }
-    }
+    if (snapshot?.homeShots != null) refreshed.home.shots = snapshot.homeShots;
+    if (snapshot?.visitorShots != null) refreshed.visitor.shots = snapshot.visitorShots;
 
-    if (boxScore?.visitor) {
-        refreshed.visitor.goals = scoreValue(
-            boxScore.visitor.finalScore,
-            game.visitor?.goals
-        );
-
-        if (boxScore.visitor.sog != null) {
-            refreshed.visitor.shots = boxScore.visitor.sog;
-        }
-    }
-
-    const freshStatus = normalizeBoxScoreStatus(boxScore?.gameStatus);
-    if (freshStatus) {
-        refreshed.status = freshStatus;
-    }
+    const freshStatus = normalizeLiveStatus(snapshot?.status);
+    if (freshStatus) refreshed.status = freshStatus;
 
     return refreshed;
 }
 
-async function fetchLiveGameSnapshot(game) {
+async function fetchFirestoreLiveSnapshot(game) {
+    /*
+     * LIVE SCORE SOURCE NOTE:
+     * unified-games and the legacy box-score response may stay at 0-0 during
+     * an in-progress game. GameSheet's live UI appears to read the season-
+     * scoped Firestore document, where computed.scoreboard.total is updated.
+     * This is best-effort public REST access. If it breaks, preserve the
+     * fallback and revisit this source rather than assuming unified-games is
+     * authoritative for live scores.
+     */
+    const url =
+        `https://firestore.googleapis.com/v1/projects/` +
+        `gamesheet-production/databases/(default)/documents/` +
+        `seasons/${encodeURIComponent(state.seasonId)}/games/` +
+        `${encodeURIComponent(game.gameId)}`;
+
+    const document = await fetchJson(url);
+    const data = firestoreDocumentData(document);
+    const total = data?.computed?.scoreboard?.total;
+
+    if (!total || total.home == null || total.visitor == null) {
+        throw new Error(`Firestore live score unavailable for game ${game.gameId}`);
+    }
+
+    return applyLiveSnapshot(game, {
+        homeScore: total.home,
+        visitorScore: total.visitor,
+        homeShots: data?.computed?.shots?.total?.home,
+        visitorShots: data?.computed?.shots?.total?.visitor,
+        status: data?.computed?.status || data?.data?.game?.status
+    });
+}
+
+async function fetchLegacyBoxScoreSnapshot(game) {
     const body = await fetchJson(
         `${API}/useBoxScore/getGameStats/${state.seasonId}/games/` +
         `${encodeURIComponent(game.gameId)}`
     );
 
     let boxScore = dataOf(body);
-    if (Array.isArray(boxScore)) {
-        boxScore = boxScore[0];
-    }
-
+    if (Array.isArray(boxScore)) boxScore = boxScore[0];
     if (!boxScore || typeof boxScore !== "object") {
         throw new Error(`No box-score data for game ${game.gameId}`);
     }
 
-    return applyBoxScoreSnapshot(game, boxScore);
+    return applyLiveSnapshot(game, {
+        homeScore: boxScore.home?.finalScore,
+        visitorScore: boxScore.visitor?.finalScore,
+        homeShots: boxScore.home?.sog,
+        visitorShots: boxScore.visitor?.sog,
+        status: boxScore.gameStatus
+    });
+}
+
+async function fetchLiveGameSnapshot(game) {
+    try {
+        return await fetchFirestoreLiveSnapshot(game);
+    }
+    catch (firestoreError) {
+        console.warn(
+            `Firestore live refresh failed for game ${game.gameId}; falling back to box score.`,
+            firestoreError
+        );
+        return fetchLegacyBoxScoreSnapshot(game);
+    }
 }
 
 async function refreshVisibleLiveGames() {
@@ -1926,12 +1996,20 @@ async function refreshVisibleLiveGames() {
 
         if (failures.length) {
             console.warn(
-                `${failures.length} live box-score refresh request(s) failed.`,
+                `${failures.length} live score refresh request(s) failed.`,
                 failures.map(result => result.reason)
             );
         }
 
-        state.lastLiveRefresh = new Date();
+        if (refreshedGames.length) {
+            state.lastLiveRefresh = new Date();
+            state.lastLiveRefreshError = failures.length
+                ? `${failures.length} refresh request(s) failed`
+                : null;
+        }
+        else {
+            state.lastLiveRefreshError = "Live score refresh failed";
+        }
 
         if (state.currentView === "rink") {
             renderRinkDay();
