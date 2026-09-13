@@ -155,6 +155,7 @@
     .status-line {
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
         gap: 9px;
         min-height: 34px;
         margin-bottom: 14px;
@@ -360,6 +361,12 @@
         min-width: 235px;
     }
 
+    .matchup-lines {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
     .team-line {
         display: flex;
         align-items: center;
@@ -428,6 +435,60 @@
     .badge.final {
         color: var(--success);
     }
+
+    .badge.live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+    background: #dc2626;
+}
+
+.badge.live::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: livePulse 1.35s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+tbody tr.live-game {
+    box-shadow: inset 3px 0 0 #dc2626;
+}
+
+.live-game .matchup-lines {
+    padding: 5px 8px;
+    border-radius: 7px;
+    background: color-mix(in srgb, #dc2626 7%, transparent);
+}
+
+.live-game .team-name {
+    font-weight: 650;
+}
+
+.live-score {
+    min-width: 28px;
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.live-refresh-status {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.live-refresh-status.active {
+    color: #dc2626;
+    font-weight: 600;
+}
 
     .game-link {
         color: var(--accent);
@@ -778,6 +839,26 @@
             min-width: 0;
         }
 
+        .matchup-lines {
+    min-width: 0;
+    width: 100%;
+}
+
+tbody tr.live-game {
+    border-left: 3px solid #dc2626;
+    box-shadow: var(--shadow);
+}
+
+.live-game .matchup-lines {
+    padding: 8px 10px;
+}
+
+.live-refresh-status {
+    width: 100%;
+    margin-left: 18px;
+    white-space: normal;
+}
+
         .team-line {
             min-width: 0;
             gap: 8px;
@@ -926,6 +1007,7 @@
     <div class="status-line">
         <span id="statusDot" class="dot"></span>
         <span id="statusText">Not loaded</span>
+        <span id="liveRefreshStatus" class="live-refresh-status" hidden></span>
     </div>
 
     <section class="cards">
@@ -1137,6 +1219,7 @@
     "use strict";
 
     const API = "https://gamesheetstats.com/api";
+    const LIVE_REFRESH_MS = 30_000;
 
     const state = {
         seasonId: localStorage.getItem("dvhl.seasonId") || "15111",
@@ -1150,7 +1233,10 @@
         favoriteRinks: new Set(
             JSON.parse(localStorage.getItem("dvhl.favoriteRinks") || "[]")
         ),
-        currentView: "schedule"
+        currentView: "schedule",
+        livePollTimer: null,
+        livePollInFlight: false,
+        lastLiveRefresh: null
     };
 
     const els = {};
@@ -1164,6 +1250,7 @@
         "errorBox",
         "statusDot",
         "statusText",
+        "liveRefreshStatus",
         "gameCount",
         "visibleCountCard",
         "divisionCount",
@@ -1302,6 +1389,8 @@
                 `Loaded ${state.games.length.toLocaleString()} games · ${state.gameLoadMode}`,
                 "ok"
             );
+
+            startLivePolling();
         }
         catch (error) {
             showError(error);
@@ -1631,6 +1720,170 @@
         ].filter(Boolean).map(String));
     }
 
+function normalizedGameStatus(game) {
+    return String(game?.status ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ");
+}
+
+function isLiveGame(game) {
+    const status = normalizedGameStatus(game);
+
+    return (
+        status === "live" ||
+        status === "active" ||
+        status === "started" ||
+        status === "playing" ||
+        status === "inprogress" ||
+        status.includes("in progress") ||
+        status.startsWith("period ")
+    );
+}
+
+function statusBadgeHtml(game) {
+    if (isLiveGame(game)) {
+        return `<span class="badge live">LIVE</span>`;
+    }
+
+    const status = normalizedGameStatus(game);
+    const cssClass = status === "final" ? "final" :
+        status === "scheduled" ? "scheduled" : "";
+
+    return `
+        <span class="badge ${cssClass}">
+            ${escapeHtml(prettyType(game.status))}
+        </span>
+    `;
+}
+
+function currentViewGames() {
+    return state.currentView === "rink"
+        ? rinkDayGames()
+        : filteredGames();
+}
+
+function visibleLiveGames() {
+    return currentViewGames().filter(isLiveGame);
+}
+
+function updateLiveRefreshStatus() {
+    const liveCount = visibleLiveGames().length;
+
+    if (!liveCount) {
+        els.liveRefreshStatus.hidden = true;
+        els.liveRefreshStatus.textContent = "";
+        els.liveRefreshStatus.classList.remove("active");
+        return;
+    }
+
+    const checked = state.lastLiveRefresh
+        ? ` · checked ${formatTime(state.lastLiveRefresh)}`
+        : "";
+
+    els.liveRefreshStatus.hidden = false;
+    els.liveRefreshStatus.classList.add("active");
+    els.liveRefreshStatus.textContent =
+        `${liveCount} live · auto-refresh 30s${checked}`;
+}
+
+function mergeRefreshedGames(freshGames) {
+    const freshById = new Map(
+        freshGames
+            .filter(game => game?.gameId != null)
+            .map(game => [String(game.gameId), game])
+    );
+
+    state.games = state.games.map(game =>
+        freshById.get(String(game.gameId)) || game
+    );
+}
+
+async function refreshVisibleLiveGames() {
+    if (state.livePollInFlight || document.hidden) {
+        return;
+    }
+
+    const liveGames = visibleLiveGames();
+
+    if (!liveGames.length) {
+        updateLiveRefreshStatus();
+        return;
+    }
+
+    state.livePollInFlight = true;
+
+    try {
+        const divisionIds = new Set();
+
+        for (const game of liveGames) {
+            for (const divisionId of gameDivisionIds(game)) {
+                divisionIds.add(divisionId);
+            }
+        }
+
+        let refreshedGames = [];
+
+        if (divisionIds.size) {
+            const results = await Promise.allSettled(
+                [...divisionIds].map(async divisionId => {
+                    const body = await fetchJson(
+                        `${API}/unified-games/${state.seasonId}` +
+                        `?division=${encodeURIComponent(divisionId)}`
+                    );
+
+                    const games = dataOf(body);
+                    return Array.isArray(games) ? games : [];
+                })
+            );
+
+            for (const result of results) {
+                if (result.status === "fulfilled") {
+                    refreshedGames.push(...result.value);
+                }
+            }
+        }
+        else {
+            const body = await fetchJson(
+                `${API}/unified-games/${state.seasonId}`
+            );
+            const games = dataOf(body);
+            refreshedGames = Array.isArray(games) ? games : [];
+        }
+
+        mergeRefreshedGames(refreshedGames);
+        state.lastLiveRefresh = new Date();
+
+        if (state.currentView === "rink") {
+            renderRinkDay();
+        }
+        else {
+            applyFilters();
+        }
+    }
+    catch (error) {
+        console.warn("Live score refresh failed:", error);
+    }
+    finally {
+        state.livePollInFlight = false;
+        updateLiveRefreshStatus();
+    }
+}
+
+function startLivePolling() {
+    if (state.livePollTimer) {
+        clearInterval(state.livePollTimer);
+    }
+
+    state.livePollTimer = setInterval(
+        refreshVisibleLiveGames,
+        LIVE_REFRESH_MS
+    );
+
+    updateLiveRefreshStatus();
+}
+
     function matchesWhen(game, mode) {
         const date = gameDate(game);
         const now = new Date();
@@ -1640,7 +1893,7 @@
         }
 
         if (mode === "upcoming") {
-            return date >= now;
+            return isLiveGame(game) || date >= now;
         }
 
         if (mode === "today") {
@@ -1811,6 +2064,7 @@
             els.rinkDaySubtitle.textContent =
                 "Select a rink and date to view its schedule.";
             els.rinkDayEmptyState.hidden = true;
+            updateLiveRefreshStatus();
             return;
         }
 
@@ -1836,6 +2090,10 @@
                 row.classList.add("my-team");
             }
 
+            if (isLiveGame(game)) {
+                row.classList.add("live-game");
+            }
+
             const date = gameDate(game);
 
             const gameUrl =
@@ -1849,18 +2107,20 @@
                 </td>
 
                 <td class="matchup">
-                    <div class="team-line away">
+                    <div class="matchup-lines">
+                        <div class="team-line away">
                         <span class="team-name">
                             ${escapeHtml(game.visitor?.title)}
                         </span>
-                        ${scoreHtml(game, "visitor")}
-                    </div>
+                            ${scoreHtml(game, "visitor")}
+                        </div>
 
-                    <div class="team-line">
+                        <div class="team-line">
                         <span class="team-name">
                             ${escapeHtml(game.home?.title)}
                         </span>
-                        ${scoreHtml(game, "home")}
+                            ${scoreHtml(game, "home")}
+                        </div>
                     </div>
                 </td>
 
@@ -1873,9 +2133,7 @@
                 </td>
 
                 <td>
-                    <span class="badge ${escapeHtml(game.status)}">
-                        ${escapeHtml(prettyType(game.status))}
-                    </span>
+                    ${statusBadgeHtml(game)}
                 </td>
 
                 <td>
@@ -1892,12 +2150,15 @@
 
             els.rinkDayBody.appendChild(row);
         }
+
+        updateLiveRefreshStatus();
     }
 
     /* ---------------- RENDER ---------------- */
 
     function applyFilters() {
         renderGames(filteredGames());
+        updateLiveRefreshStatus();
     }
 
     function renderGames(games) {
@@ -1920,6 +2181,10 @@
                 gameHasTeam(game, state.myTeamId)
             ) {
                 row.classList.add("my-team");
+            }
+
+            if (isLiveGame(game)) {
+                row.classList.add("live-game");
             }
 
             const date = gameDate(game);
@@ -1945,18 +2210,20 @@
                 </td>
 
                 <td class="matchup">
-                    <div class="team-line away">
+                    <div class="matchup-lines">
+                        <div class="team-line away">
                         <span class="team-name">
                             ${escapeHtml(game.visitor?.title)}
                         </span>
-                        ${scoreHtml(game, "visitor")}
-                    </div>
+                            ${scoreHtml(game, "visitor")}
+                        </div>
 
-                    <div class="team-line">
+                        <div class="team-line">
                         <span class="team-name">
                             ${escapeHtml(game.home?.title)}
                         </span>
-                        ${scoreHtml(game, "home")}
+                            ${scoreHtml(game, "home")}
+                        </div>
                     </div>
                 </td>
 
@@ -1983,9 +2250,7 @@
                 </td>
 
                 <td>
-                    <span class="badge ${escapeHtml(game.status)}">
-                        ${escapeHtml(prettyType(game.status))}
-                    </span>
+                    ${statusBadgeHtml(game)}
                 </td>
 
                 <td>
@@ -2013,12 +2278,14 @@
     }
 
     function scoreHtml(game, side) {
-        if (game.status === "scheduled") {
+        if (normalizedGameStatus(game) === "scheduled") {
             return `<span class="score"></span>`;
         }
 
+        const liveClass = isLiveGame(game) ? " live-score" : "";
+
         return `
-            <span class="score">
+            <span class="score${liveClass}">
                 ${escapeHtml(game[side]?.goals ?? "")}
             </span>
         `;
@@ -2058,6 +2325,8 @@
         else {
             applyFilters();
         }
+
+        updateLiveRefreshStatus();
     }
 
     /* ---------------- PREFERENCES ---------------- */
@@ -2308,6 +2577,12 @@
         els.rinkDayDate.value = todayKey();
         saveRinkDayPreferences();
         renderRinkDay();
+    });
+
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+            refreshVisibleLiveGames();
+        }
     });
 
     load();
