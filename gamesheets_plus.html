@@ -243,6 +243,10 @@
         align-items: end;
     }
 
+    .field {
+        min-width: 0;
+    }
+
     .field label {
         display: block;
         color: var(--muted);
@@ -253,6 +257,13 @@
     .field select,
     .field input {
         width: 100%;
+    }
+
+    #rinkDayDate {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
     }
 
     .filter-options,
@@ -655,6 +666,14 @@ tbody tr.live-game {
             display: grid;
             grid-template-columns: 1fr;
             gap: 11px;
+        }
+
+        .rink-control-grid > * {
+            min-width: 0;
+        }
+
+        #rinkDayDate::-webkit-date-and-time-value {
+            text-align: left;
         }
 
         /* Checkboxes become comfortable touch rows */
@@ -1800,6 +1819,81 @@ function mergeRefreshedGames(freshGames) {
     );
 }
 
+function normalizeBoxScoreStatus(value) {
+    const status = String(value ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ");
+
+    if (status.includes("progress")) return "in_progress";
+    if (status === "final") return "final";
+    if (status === "scheduled") return "scheduled";
+
+    return status ? status.replace(/\s+/g, "_") : "";
+}
+
+function scoreValue(value, fallback) {
+    if (value == null || value === "") return fallback;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : value;
+}
+
+function applyBoxScoreSnapshot(game, boxScore) {
+    const refreshed = {
+        ...game,
+        home: { ...game.home },
+        visitor: { ...game.visitor }
+    };
+
+    if (boxScore?.home) {
+        refreshed.home.goals = scoreValue(
+            boxScore.home.finalScore,
+            game.home?.goals
+        );
+
+        if (boxScore.home.sog != null) {
+            refreshed.home.shots = boxScore.home.sog;
+        }
+    }
+
+    if (boxScore?.visitor) {
+        refreshed.visitor.goals = scoreValue(
+            boxScore.visitor.finalScore,
+            game.visitor?.goals
+        );
+
+        if (boxScore.visitor.sog != null) {
+            refreshed.visitor.shots = boxScore.visitor.sog;
+        }
+    }
+
+    const freshStatus = normalizeBoxScoreStatus(boxScore?.gameStatus);
+    if (freshStatus) {
+        refreshed.status = freshStatus;
+    }
+
+    return refreshed;
+}
+
+async function fetchLiveGameSnapshot(game) {
+    const body = await fetchJson(
+        `${API}/useBoxScore/getGameStats/${state.seasonId}/games/` +
+        `${encodeURIComponent(game.gameId)}`
+    );
+
+    let boxScore = dataOf(body);
+    if (Array.isArray(boxScore)) {
+        boxScore = boxScore[0];
+    }
+
+    if (!boxScore || typeof boxScore !== "object") {
+        throw new Error(`No box-score data for game ${game.gameId}`);
+    }
+
+    return applyBoxScoreSnapshot(game, boxScore);
+}
+
 async function refreshVisibleLiveGames() {
     if (state.livePollInFlight || document.hidden) {
         return;
@@ -1815,44 +1909,28 @@ async function refreshVisibleLiveGames() {
     state.livePollInFlight = true;
 
     try {
-        const divisionIds = new Set();
+        const results = await Promise.allSettled(
+            liveGames.map(fetchLiveGameSnapshot)
+        );
 
-        for (const game of liveGames) {
-            for (const divisionId of gameDivisionIds(game)) {
-                divisionIds.add(divisionId);
-            }
+        const refreshedGames = results
+            .filter(result => result.status === "fulfilled")
+            .map(result => result.value);
+
+        const failures = results
+            .filter(result => result.status === "rejected");
+
+        if (refreshedGames.length) {
+            mergeRefreshedGames(refreshedGames);
         }
 
-        let refreshedGames = [];
-
-        if (divisionIds.size) {
-            const results = await Promise.allSettled(
-                [...divisionIds].map(async divisionId => {
-                    const body = await fetchJson(
-                        `${API}/unified-games/${state.seasonId}` +
-                        `?division=${encodeURIComponent(divisionId)}`
-                    );
-
-                    const games = dataOf(body);
-                    return Array.isArray(games) ? games : [];
-                })
+        if (failures.length) {
+            console.warn(
+                `${failures.length} live box-score refresh request(s) failed.`,
+                failures.map(result => result.reason)
             );
-
-            for (const result of results) {
-                if (result.status === "fulfilled") {
-                    refreshedGames.push(...result.value);
-                }
-            }
-        }
-        else {
-            const body = await fetchJson(
-                `${API}/unified-games/${state.seasonId}`
-            );
-            const games = dataOf(body);
-            refreshedGames = Array.isArray(games) ? games : [];
         }
 
-        mergeRefreshedGames(refreshedGames);
         state.lastLiveRefresh = new Date();
 
         if (state.currentView === "rink") {
@@ -1881,6 +1959,7 @@ function startLivePolling() {
         LIVE_REFRESH_MS
     );
 
+    refreshVisibleLiveGames();
     updateLiveRefreshStatus();
 }
 
