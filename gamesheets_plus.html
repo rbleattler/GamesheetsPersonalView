@@ -14,23 +14,21 @@
 <section id="updateCard" class="shell" hidden>
   <div class="brand"><div class="mark">◉</div><div><b>MyHockey<em>Hub</em></b><div style="color:var(--muted);font-size:.8rem">Stable latest-version link</div></div></div>
   <div id="kicker" class="kicker">Latest update</div>
-  <h1 id="title">What’s new in V3.4</h1>
+  <h1 id="title">What’s new in V3.4.1</h1>
   <p id="intro" class="intro">A few useful improvements landed since your last visit.</p>
   <div class="items">
-    <div class="item"><div class="check">✓</div><div><b>Multiple My Teams</b><span>Save more than one team, switch between them, and browse each team roster independently.</span></div></div>
-    <div class="item"><div class="check">✓</div><div><b>Cleaner box score on phones</b><span>The box score now fits the mobile drawer and uses compact team abbreviations when space is tight.</span></div></div>
-    <div class="item"><div class="check">✓</div><div><b>Stale live-game cleanup</b><span>Games still marked Live more than 24 hours after start are hidden by default and can be restored from Settings.</span></div></div>
+    <div class="item"><div class="check">✓</div><div><b>Natural division ordering</b><span>Division pickers are now grouped youngest to oldest, then strongest tier to lower tier within each age (AA → A → B), with conference names used as the final tie-breaker.</span></div></div>
   </div>
   <div id="originalNote" class="original" hidden>The page you originally used has been preserved as <b>V1</b>. This URL now always leads to the latest MyHockeyHub version, but you can go back to the original whenever you want.</div>
-  <div class="actions"><a href="index.html">Version history</a><a id="v1Link" href="v1.html" hidden>Open original V1</a><button id="continueBtn" class="primary">Continue to V3.4</button></div>
+  <div class="actions"><a href="index.html">Version history</a><a id="v1Link" href="v1.html" hidden>Open original V1</a><button id="continueBtn" class="primary">Continue to V3.4.1</button></div>
   <div class="note">MyHockeyHub is an independent project using publicly available GameSheet data. It is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.</div>
 </section>
 <section id="loading" class="loading"><div class="spinner"></div><b>Opening the latest MyHockeyHub…</b></section>
 </main>
 <script>
 (() => {
-  const CURRENT = '3.4';
-  const TARGET = 'v3.4.html';
+  const CURRENT = '3.4.1';
+  const TARGET = 'v3.4.1.html';
   const KEY = 'myhockeyhub.stableLastSeenVersion';
   const last = localStorage.getItem(KEY) || '';
   const legacy = !!(
