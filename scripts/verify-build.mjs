@@ -39,6 +39,10 @@ const diagnosticsJs = await readFile(join(dist, 'assets/diagnostics.js'), 'utf8'
 if (/<style[\s>]/i.test(appHtml)) throw new Error('App HTML still contains an inline <style> block.');
 if (/<script\b(?![^>]*\bsrc=)[^>]*>/i.test(appHtml)) throw new Error('App HTML still contains inline JavaScript.');
 if (!appHtml.includes('href="../"') || !appHtml.includes('aria-label="Home"')) throw new Error('App Home control is missing.');
+if (!appHtml.includes('>V4.0</span>')) throw new Error('Visible application version is not V4.0.');
+for (const iconClass of ['fa-house','fa-circle-question','fa-bars','fa-users','fa-location-dot','fa-user','fa-calendar-days']) {
+  if (!appHtml.includes(iconClass)) throw new Error(`App chrome is missing Font Awesome icon ${iconClass}.`);
+}
 if (!appHtml.includes('../assets/fetch-guard.js?v=') || !appHtml.includes('../assets/foundation.js?v=') || !appHtml.includes('../assets/app.js?v=') || !appHtml.includes('../assets/router.js?v=') || !appHtml.includes('../assets/venue-links.js?v=') || !appHtml.includes('../assets/card-actions.js?v=') || !appHtml.includes('../assets/diagnostics.js?v=')) throw new Error('Versioned external app bundles are missing.');
 if (!appHtml.includes('name="myhockeyhub-build"') || !homeHtml.includes('name="myhockeyhub-build"')) throw new Error('Static build marker is missing.');
 if (!homeHtml.includes('assets/site.css?v=')) throw new Error('Home stylesheet is not cache-busted.');
@@ -50,9 +54,12 @@ if (legacyLauncherHtml.includes('url=app/') || legacyLauncherHtml.includes("loca
 if (!guardJs.includes('MyHockeyHubFetchGuard') || !guardJs.includes('AbortController') || !guardJs.includes('TimeoutError')) throw new Error('Fetch timeout guard was not emitted correctly.');
 if (!venueLinksJs.includes('livebarnVenues.v1') || !venueLinksJs.includes('gamecard') || !venueLinksJs.includes('LiveBarn venue')) throw new Error('Venue LiveBarn inference bridge was not emitted correctly.');
 if (!cardActionsJs.includes('game-action-row') || !cardActionsJs.includes('GameSheet') || !cardActionsJs.includes('LiveBarn')) throw new Error('Game-card action-row decorator was not emitted correctly.');
+if (!cardActionsJs.includes('fa-file-lines') || !cardActionsJs.includes('fa-circle-play') || cardActionsJs.includes('▶')) throw new Error('Game actions are not using Font Awesome glyphs.');
 if (!cardActionsJs.includes('addedNodes') || !cardActionsJs.includes('card-actions-decorated')) throw new Error('Game-card decorator is not using incremental added-node processing.');
 if (!appCss.includes('.game-action-row') || !appCss.includes('.game-meta-two') || !appCss.includes('[data-actions="1"]')) throw new Error('Game-card action-row styles were not emitted correctly.');
+if (!appCss.includes('.fa-icon') || !appCss.includes('.fa-house') || !appCss.includes('.fa-file-lines') || !appCss.includes('data:image/svg+xml;base64')) throw new Error('Selected Font Awesome SVG glyphs were not bundled into app CSS.');
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
+if (appJs.includes('version:"3.6"') || appJs.includes('version:"4.0.0-beta.0"')) throw new Error('Generated app still reports a pre-V4 version.');
 for (const method of ['seasonInfo','seasonDivisions','unifiedGames','skaterStandings','goalieStandings']) {
   if (!appJs.includes(method)) throw new Error(`App bundle is not using API client method ${method}.`);
 }
