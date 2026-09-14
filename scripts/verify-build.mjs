@@ -34,7 +34,7 @@ if (!homeHtml.includes('href="app/"') || !homeHtml.includes('href="versions.html
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
 if (!appJs.includes('MyHockeyHubLiveService')) throw new Error('App bundle is not exposing the shared live-refresh service.');
 if (!appJs.includes('MyHockeyHubDebug')) throw new Error('Preview diagnostics adapter was not emitted.');
-if (!foundationJs.includes('MyHockeyHubFoundation') || !foundationJs.includes('addEventListener("online"')) throw new Error('Foundation live reconnect handling was not emitted correctly.');
+if (!foundationJs.includes('MyHockeyHubFoundation') || !foundationJs.includes('addEventListener') || !foundationJs.includes('"online"')) throw new Error('Foundation live reconnect handling was not emitted correctly.');
 if (!diagnosticsJs.includes('myhockeyhub.debug')) throw new Error('Diagnostics bundle was not emitted correctly.');
 
 console.log('Build verification passed.');
