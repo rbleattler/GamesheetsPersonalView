@@ -1,4 +1,5 @@
 const API_BASE='https://gamesheetstats.com/api';
+const FIRESTORE_GAME_BASE='https://firestore.googleapis.com/v1/projects/gamesheet-production/databases/(default)/documents/seasons';
 
 function dataOf(body){return body&&typeof body==='object'&&'data'in body?body.data:body}
 function firstData(body){const data=dataOf(body);return Array.isArray(data)?data[0]:data}
@@ -12,6 +13,26 @@ async function fetchJson(url,{fetchImpl=globalThis.fetch,cache='no-store',creden
     throw new Error(body.message||body.error||`GameSheet status ${body.status}`);
   }
   return body;
+}
+
+function appendQuery(url,query=''){
+  const q=String(query||'').trim();
+  if(!q)return url;
+  return `${url}${q.startsWith('?')?q:`?${q}`}`;
+}
+
+function createApiClient({fetchImpl=globalThis.fetch}={}){
+  const get=(url,options={})=>fetchJson(url,{fetchImpl,...options});
+  const seasonPath=(segment,seasonId)=>`${API_BASE}/${segment}/${encodeURIComponent(String(seasonId))}`;
+  return{
+    fetchJson:(url,options={})=>get(url,options),
+    seasonInfo:seasonId=>get(seasonPath('season-info',seasonId)),
+    seasonDivisions:seasonId=>get(seasonPath('season-divisions',seasonId)),
+    unifiedGames:seasonId=>get(seasonPath('unified-games',seasonId)),
+    skaterStandings:(seasonId,query='')=>get(appendQuery(seasonPath('players/standings',seasonId),query)),
+    goalieStandings:(seasonId,query='')=>get(appendQuery(seasonPath('goalies/standings',seasonId),query)),
+    firestoreGame:(seasonId,gameId)=>get(`${FIRESTORE_GAME_BASE}/${encodeURIComponent(String(seasonId))}/games/${encodeURIComponent(String(gameId))}`)
+  };
 }
 
 function asUrl(value){
@@ -134,9 +155,10 @@ function createLiveRefreshService({
   return{start,stop,refresh,getState:()=>({running,lastSuccess,lastError})};
 }
 
+const apiClient=createApiClient();
 globalThis.MyHockeyHubFoundation={
   API_BASE,
-  api:{fetchJson},
+  api:{...apiClient,createClient:createApiClient},
   normalize:{dataOf,firstData,game:normalizeGame,games:normalizeGames,broadcaster:normalizeBroadcaster},
   broadcast:{classifyUrl:classifyBroadcastUrl,isGenericLiveBarnUrl},
   live:{createRefreshService:createLiveRefreshService},
