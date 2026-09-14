@@ -5,6 +5,7 @@ import {readFile} from 'node:fs/promises';
 await import('../src/app/foundation.js');
 const foundation=globalThis.MyHockeyHubFoundation;
 const fixture=JSON.parse(await readFile(new URL('./fixtures/games.json',import.meta.url),'utf8'));
+const replayFixture=JSON.parse(await readFile(new URL('./fixtures/live-replay.json',import.meta.url),'utf8'));
 
 test('unwraps GameSheet data and normalizes games',()=>{
   const games=foundation.normalize.games(fixture);
@@ -54,4 +55,16 @@ test('live refresh service prevents overlap and applies successful snapshots',as
   const result=await first;
   assert.equal(result.updated,1);
   assert.equal(applied.length,1);
+});
+
+test('replay controller steps deterministically through scheduled, live, and final states',()=>{
+  const replay=foundation.replay.createController(replayFixture.snapshots);
+  assert.equal(replay.state().total,4);
+  assert.equal(replay.current().status,'scheduled');
+  assert.equal(replay.step().current.status,'live');
+  assert.equal(replay.step().current.visitor.goals,2);
+  assert.equal(replay.step().current.status,'final');
+  assert.equal(replay.step().index,3);
+  assert.equal(replay.state().done,true);
+  assert.equal(replay.reset().current.status,'scheduled');
 });
