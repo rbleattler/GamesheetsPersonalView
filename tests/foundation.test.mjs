@@ -6,6 +6,7 @@ await import('../src/app/foundation.js');
 const foundation=globalThis.MyHockeyHubFoundation;
 const fixture=JSON.parse(await readFile(new URL('./fixtures/games.json',import.meta.url),'utf8'));
 const replayFixture=JSON.parse(await readFile(new URL('./fixtures/live-replay.json',import.meta.url),'utf8'));
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
 test('unwraps GameSheet data and normalizes games',()=>{
   const games=foundation.normalize.games(fixture);
@@ -35,6 +36,26 @@ test('API client validates HTTP and GameSheet status without live network access
   await assert.rejects(()=>foundation.api.fetchJson('https://example.invalid',{fetchImpl:badStatus}),/fixture failure/);
 });
 
+test('endpoint client owns public GameSheet URL construction',async()=>{
+  const calls=[];
+  const fetchImpl=async url=>{calls.push(String(url));return{ok:true,status:200,statusText:'OK',json:async()=>({status:'success',data:[]})}};
+  const client=foundation.api.createClient({fetchImpl});
+  await client.seasonInfo('15 111');
+  await client.seasonDivisions('15111');
+  await client.unifiedGames('15111');
+  await client.skaterStandings('15111','?limit=20&sort=-pts');
+  await client.goalieStandings('15111','limit=10&sort=gaa');
+  await client.firestoreGame('15111','game/id');
+  assert.deepEqual(calls,[
+    'https://gamesheetstats.com/api/season-info/15%20111',
+    'https://gamesheetstats.com/api/season-divisions/15111',
+    'https://gamesheetstats.com/api/unified-games/15111',
+    'https://gamesheetstats.com/api/players/standings/15111?limit=20&sort=-pts',
+    'https://gamesheetstats.com/api/goalies/standings/15111?limit=10&sort=gaa',
+    'https://firestore.googleapis.com/v1/projects/gamesheet-production/databases/(default)/documents/seasons/15111/games/game%2Fid'
+  ]);
+});
+
 test('live refresh service prevents overlap and applies successful snapshots',async()=>{
   let release;
   const gate=new Promise(resolve=>{release=resolve});
@@ -55,6 +76,32 @@ test('live refresh service prevents overlap and applies successful snapshots',as
   const result=await first;
   assert.equal(result.updated,1);
   assert.equal(applied.length,1);
+});
+
+test('live refresh service refreshes on visibility recovery and reconnect',async()=>{
+  const docListeners={},windowListeners={};
+  const documentRef={hidden:false,addEventListener:(name,fn)=>docListeners[name]=fn,removeEventListener:name=>delete docListeners[name]};
+  const windowRef={addEventListener:(name,fn)=>windowListeners[name]=fn,removeEventListener:name=>delete windowListeners[name]};
+  let fetches=0;
+  const service=foundation.live.createRefreshService({
+    getVisibleLive:()=>[{gameId:'1'}],
+    fetchSnapshot:async game=>{fetches++;return game},
+    applySnapshots:()=>{},
+    documentRef,windowRef,
+    setIntervalImpl:()=>1,clearIntervalImpl:()=>{}
+  });
+  service.start();
+  await tick();
+  assert.equal(fetches,1);
+  documentRef.hidden=true;docListeners.visibilitychange();await tick();
+  assert.equal(fetches,1);
+  documentRef.hidden=false;docListeners.visibilitychange();await tick();
+  assert.equal(fetches,2);
+  windowListeners.online();await tick();
+  assert.equal(fetches,3);
+  service.stop();
+  assert.equal(docListeners.visibilitychange,undefined);
+  assert.equal(windowListeners.online,undefined);
 });
 
 test('replay controller steps deterministically through scheduled, live, and final states',()=>{
