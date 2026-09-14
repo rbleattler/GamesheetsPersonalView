@@ -37,6 +37,19 @@ const legacyDataHelpers = "function dataOf(b){return b&&typeof b==='object'&&'da
 if (!appJs.includes(legacyDataHelpers)) throw new Error('Expected V3.6 data helpers were not found.');
 appJs = appJs.replace(legacyDataHelpers, "function dataOf(b){return window.MyHockeyHubFoundation.normalize.dataOf(b)}function firstData(b){return window.MyHockeyHubFoundation.normalize.firstData(b)}");
 
+const endpointRewrites = [
+  ["fetchJson(`${API}/season-info/${state.seasonId}`)", "window.MyHockeyHubFoundation.api.seasonInfo(state.seasonId)"],
+  ["fetchJson(`${API}/season-divisions/${state.seasonId}`)", "window.MyHockeyHubFoundation.api.seasonDivisions(state.seasonId)"],
+  ["fetchJson(`${API}/unified-games/${state.seasonId}`)", "window.MyHockeyHubFoundation.api.unifiedGames(state.seasonId)"],
+  ["fetchJson(`${API}/season-info/${m[1]}`)", "window.MyHockeyHubFoundation.api.seasonInfo(m[1])"],
+  ["fetchJson(`${API}/players/standings/${state.seasonId}${base}&sort=-pts`)", "window.MyHockeyHubFoundation.api.skaterStandings(state.seasonId,`${base}&sort=-pts`)"],
+  ["fetchJson(`${API}/goalies/standings/${state.seasonId}${base}&sort=gaa`)", "window.MyHockeyHubFoundation.api.goalieStandings(state.seasonId,`${base}&sort=gaa`)" ]
+];
+for (const [from,to] of endpointRewrites) {
+  if (!appJs.includes(from)) throw new Error(`Expected V3.6 endpoint call was not found: ${from}`);
+  appJs = appJs.split(from).join(to);
+}
+
 const gamesAssignment = 'state.games=dedupe(dataOf(g)||[])';
 if (!appJs.includes(gamesAssignment)) throw new Error('Expected V3.6 game assignment was not found.');
 appJs = appJs.replace(gamesAssignment, 'state.games=dedupe(window.MyHockeyHubFoundation.normalize.games(g))');
