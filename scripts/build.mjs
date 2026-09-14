@@ -29,6 +29,18 @@ const catalogFetch = "fetch('data/seasons.json'";
 if (!appJs.includes(catalogFetch)) throw new Error('Expected season-catalog fetch was not found in V3.6.');
 appJs = appJs.replace(catalogFetch, "fetch('../data/seasons.json'");
 
+const legacyFetchJson = "async function fetchJson(url){const r=await fetch(url,{cache:'no-store',credentials:'omit'});if(!r.ok)throw new Error(`${r.status} ${r.statusText}`);const b=await r.json();if(b&&typeof b==='object'&&'status'in b&&b.status!=='success')throw new Error(b.message||b.error||`GameSheet status ${b.status}`);return b}";
+if (!appJs.includes(legacyFetchJson)) throw new Error('Expected V3.6 fetchJson implementation was not found.');
+appJs = appJs.replace(legacyFetchJson, "async function fetchJson(url){return window.MyHockeyHubFoundation.api.fetchJson(url)}");
+
+const legacyDataHelpers = "function dataOf(b){return b&&typeof b==='object'&&'data'in b?b.data:b}function firstData(b){const d=dataOf(b);return Array.isArray(d)?d[0]:d}";
+if (!appJs.includes(legacyDataHelpers)) throw new Error('Expected V3.6 data helpers were not found.');
+appJs = appJs.replace(legacyDataHelpers, "function dataOf(b){return window.MyHockeyHubFoundation.normalize.dataOf(b)}function firstData(b){return window.MyHockeyHubFoundation.normalize.firstData(b)}");
+
+const gamesAssignment = 'state.games=dedupe(dataOf(g)||[])';
+if (!appJs.includes(gamesAssignment)) throw new Error('Expected V3.6 game assignment was not found.');
+appJs = appJs.replace(gamesAssignment, 'state.games=dedupe(window.MyHockeyHubFoundation.normalize.games(g))');
+
 const visibilityHook = "document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollLive()});";
 if (!appJs.includes(visibilityHook)) throw new Error('Expected live-refresh visibility hook was not found in V3.6.');
 appJs = appJs.replace(
@@ -36,21 +48,23 @@ appJs = appJs.replace(
   `${visibilityHook}window.addEventListener('online',()=>pollLive());`
 );
 
-const [{ code: minCss }, { code: minJs }, routerSource, siteCss, homeHtml] = await Promise.all([
-  transform(appCss, { loader: 'css', minify: true }),
-  transform(appJs, { loader: 'js', minify: true, target: 'es2022' }),
+const [routerSource, foundationSource, siteCss, homeHtml] = await Promise.all([
   read('src/app/router.js'),
+  read('src/app/foundation.js'),
   read('src/site.css'),
   read('src/home.html')
 ]);
-const [{ code: minRouter }, { code: minSiteCss }] = await Promise.all([
+const [{ code: minCss }, { code: minJs }, { code: minRouter }, { code: minFoundation }, { code: minSiteCss }] = await Promise.all([
+  transform(appCss, { loader: 'css', minify: true }),
+  transform(appJs, { loader: 'js', minify: true, target: 'es2022' }),
   transform(routerSource, { loader: 'js', minify: true, target: 'es2022' }),
+  transform(foundationSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(siteCss, { loader: 'css', minify: true })
 ]);
 
 let appHtml = legacy
   .replace(styleMatch[0], '<link rel="stylesheet" href="../assets/app.css">')
-  .replace(scriptMatch[0], '<script src="../assets/app.js" defer></script>\n<script src="../assets/router.js" defer></script>')
+  .replace(scriptMatch[0], '<script src="../assets/foundation.js" defer></script>\n<script src="../assets/app.js" defer></script>\n<script src="../assets/router.js" defer></script>')
   .replace('<title>MyHockeyHub — V3.6</title>', '<title>MyHockeyHub</title>');
 
 const topActions = '<div class="top-actions"><span class="version">V3.6</span>';
@@ -64,6 +78,7 @@ await Promise.all([
   write('index.html', homeHtml),
   write('app/index.html', appHtml),
   write('assets/app.css', minCss),
+  write('assets/foundation.js', minFoundation),
   write('assets/app.js', minJs),
   write('assets/router.js', minRouter),
   write('assets/site.css', minSiteCss),
