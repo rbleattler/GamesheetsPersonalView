@@ -29,6 +29,22 @@ test('missing broadcaster metadata is harmless',()=>{
   assert.deepEqual(game._broadcast.candidates,[]);
 });
 
+test('discovers game-specific LiveBarn URLs nested in detail payloads',()=>{
+  const game=foundation.normalize.game({gameId:'2919322',status:'final'});
+  const detail={data:{game:{broadcaster:{provider:'LiveBarn',links:{watch:'https://livebarn.com/en/video/874/2026-09-13/16:45'}}}}};
+  const enriched=foundation.normalize.enrichGameBroadcast(game,detail);
+  assert.equal(enriched._broadcast.available,true);
+  assert.equal(enriched._broadcast.provider,'LiveBarn');
+  assert.equal(enriched._broadcast.url,'https://livebarn.com/en/video/874/2026-09-13/16:45');
+});
+
+test('recursive broadcaster discovery still suppresses generic venue search',()=>{
+  const detail={data:{venue:{broadcaster:{url:'https://livebarn.com/en/venues/search?q=pny'}}}};
+  const b=foundation.normalize.broadcaster(detail);
+  assert.equal(b.available,false);
+  assert.equal(b.suppressed[0].reason,'generic-venue-search');
+});
+
 test('normalizes nested player standings without app-state dependencies',()=>{
   const skaters=foundation.normalize.standingPlayers(playerFixture,{kind:'skater',divisionId:'12'});
   assert.equal(skaters.length,2);
