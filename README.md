@@ -1,122 +1,94 @@
 # MyHockeyHub
 
-MyHockeyHub is a mobile-first personal hockey schedule, scores, and stats viewer built around publicly available GameSheet data.
-
-It started as a simple way to make a very large league schedule easier to browse on a phone, then grew into a personalized view centered on the things a hockey family actually cares about: their teams, players, favorite venues, upcoming games, live scores, and game details.
+MyHockeyHub is a mobile-first hockey schedule, scores, and stats viewer built around publicly available GameSheet data. It is designed for families and fans who want a simpler personal view of the league information they already care about.
 
 > **Independent project:** MyHockeyHub is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.
 
-## Live site
+## Open the app
 
 - **Stable latest version:** https://rbleattler.com/GamesheetsPersonalView/gamesheets_plus.html
-- **Version history / project evolution:** https://rbleattler.com/GamesheetsPersonalView/
-- **Current numbered version:** `v3.5.html`
+- **Version history:** https://rbleattler.com/GamesheetsPersonalView/
+- **Current numbered version:** `v3.6.html`
 
-The stable `gamesheets_plus.html` URL is intended to remain shareable over time. It points users to the current version and can show a one-time “What’s new” message when the version changes.
+The stable URL is the one to share. First-time visitors are asked to choose a league/season before the app loads; returning users keep their saved selection.
 
 ## What it does
 
-MyHockeyHub currently supports:
+- Search for a league/season as you type
+- Recognize familiar acronyms conservatively (for example, `DVHL`)
+- Browse and filter the full schedule
+- Save multiple **My Teams**
+- Follow individual **My Players**
+- Save favorite venues
+- Show live and completed game details, scoring, penalties, box score, and rosters
+- Hide obviously stale “Live” games by default
+- Keep preferences locally without requiring an account
+- Offer built-in Help, FAQ access, and a simple feedback/reporting flow
 
-- Full-season schedule browsing and search
-- Type-ahead league / season discovery from a periodically refreshed local catalog
-- Conservative acronym fallback for familiar league abbreviations such as DVHL
-- Division, team, date-range, rink, and status filtering
-- Multiple **My Teams** for families with players on different teams
-- Division-first team selection
-- Favorite venues and venue-focused schedules
-- **My Players** with followed-player stats and recent game activity
-- Team roster browsing
-- Live-score polling for games that are actually in progress
-- Automatic hiding of likely stale “Live” games more than 24 hours old
-- Game stats including scoring, penalties, players, shots, PIM, and box score
-- Chronological play-by-play grouped by period
-- Expandable goal and penalty details
-- Direct links back to the corresponding GameSheet game
-- Dark, light, or follow-device appearance
-- Local preference persistence without accounts or a backend
+## Quick start
 
-## How the app is built
+1. Open the stable URL.
+2. Choose your league or season.
+3. Open **My Teams** and add the teams you care about (division first, then team).
+4. Use **Players** to follow individuals or browse a saved team roster.
+5. Star venues from game cards if you want rink-focused schedules.
+6. Use **Schedule** for the full league view and filters.
+7. Tap **?** beside the menu whenever you need help or want to send feedback.
+
+## League / season catalog
+
+GameSheet’s live season-directory search is partner-restricted, so MyHockeyHub ships a periodically refreshed snapshot at [`data/seasons.json`](data/seasons.json). The app searches that local file in the browser; normal users do **not** scrape GameSheet.
+
+Search ranking favors exact names, starts-with/text matches, explicit acronyms already present in the source name, and current/recent seasons. Inferred acronyms are only used as a lower-confidence fallback. If a newly created season is not in the snapshot yet, users can still open it directly with its GameSheet season URL or season ID.
+
+See [`data/README.md`](data/README.md) for the catalog maintenance notes.
+
+## Help and feedback
+
+The **?** button in the app opens quick help and links to the full [FAQ](FAQ.md). It also offers two ways to send feedback:
+
+- **Build a report in the app:** enter a plain-language summary and description. MyHockeyHub adds basic app context and opens a pre-filled GitHub issue for review.
+- **Use the guided GitHub form:** a short issue form asks only for useful information; no deep technical knowledge is expected.
+
+The static app does not upload screenshots directly to GitHub. After GitHub opens, users can paste or drag images into the issue before submitting. A GitHub account is required to submit an issue.
+
+## Privacy and local data
+
+MyHockeyHub has no user accounts or application database. Preferences such as selected season, My Teams, favorite venues, followed players, and theme are stored in the browser with `localStorage`. They are device/browser specific and disappear if site data is cleared.
+
+The optional feedback report can include basic context such as app version, current view, league/season, page URL, browser description, and viewport size. It does **not** include saved teams, followed players, or other personal preferences.
+
+## How it is built
 
 The project intentionally stays simple:
 
 - Static HTML, CSS, and JavaScript
-- Hosted with GitHub Pages
+- GitHub Pages hosting
+- Public GameSheet/`gamesheetstats.com` data fetched in the browser
 - No application server
-- No user accounts
-- No database owned by MyHockeyHub
-- Preferences are stored in the browser with `localStorage`
+- No login system
+- No MyHockeyHub database
 
-The application reads public GameSheet/`gamesheetstats.com` data in the browser and renders it into a more personalized mobile experience.
+Prior numbered HTML versions remain in the repository so the project’s evolution can be inspected or compared.
 
-## League / season catalog
+## Version highlights
 
-The app cannot use GameSheet’s partner-only season-directory search API, so MyHockeyHub ships a periodically refreshed snapshot at [`data/seasons.json`](data/seasons.json). The finder searches that file locally in the browser; normal app use does not scrape season IDs.
+- **V1** — original schedule/rink viewer
+- **V2** — richer cards and in-app game stats
+- **V3** — My Teams, Venues, Players, and Schedule product model
+- **V3.2.x** — player details, accurate rosters, appearance/settings, event ordering
+- **V3.3** — compact scoreboard, box score, timeline play-by-play
+- **V3.4** — multiple My Teams and stale-live cleanup
+- **V3.4.2** — clearer Add Players multi-selection
+- **V3.5** — searchable league/season catalog
+- **V3.6** — first-run league selection, Help, and feedback/reporting
 
-Search ranking favors exact names, starts-with and token matches, explicit acronyms already present in a season name, and current/recent seasons. Generated acronyms are deliberately conservative: for example, **Delaware Valley Hockey League** can be found with **DVHL**, but inferred acronym matches rank below direct textual matches and require an exact acronym match.
+## Data quality
 
-The snapshot can lag newly created seasons, so the finder retains a direct GameSheet season ID / URL fallback.
-
-## Privacy and local data
-
-Saved settings such as My Teams, favorite venues, followed players, selected season, and appearance preferences are stored locally in the browser.
-
-That means:
-
-- Preferences are device/browser specific
-- Clearing browser/site data removes them
-- MyHockeyHub does not require an account to remember preferences
-- Settings includes a **Clear all MyHockeyHub data** option
-
-## Versions
-
-This repository intentionally keeps prior versions available so design and behavior can be compared over time.
-
-The root `index.html` contains the visual version history and links to each preserved version.
-
-Major milestones include:
-
-- **V1** — original public schedule viewer
-- **V2** — redesigned game cards and game-stat drawer
-- **V3** — personalization model: My Team, Venues, Players, Schedule
-- **V3.2.x** — player detail, accurate rosters, appearance/settings, event ordering
-- **V3.3** — compact scoreboard, box score, and timeline-style play-by-play
-- **V3.4** — multiple My Teams and stale-live-game handling
-- **V3.4.1** — natural age/tier ordering for division selectors
-- **V3.4.2** — explicit Add Players multi-selection flow
-- **V3.5** — searchable league/season catalog with cautious acronym matching
-
-## Quick start
-
-1. Open the stable latest-version URL.
-2. Use **Settings → Find league / season** if you need a different league or season.
-3. Choose **My Teams** and add a team by first selecting its division, then the team.
-4. Add additional teams if more than one family member plays.
-5. Star venues you care about.
-6. Open **Players** to browse a saved team roster or follow individual players.
-7. Use **Schedule** for league-wide searching and filtering.
-8. Tap completed/live games to open detailed game stats.
-
-## Help / FAQ
-
-Some features are intentionally compact on mobile and are not immediately obvious. See [FAQ.md](FAQ.md) for practical how-to guidance, including:
-
-- How to find or change leagues / seasons
-- How to add multiple My Teams
-- How to follow players from the Add Players multi-select screen
-- How My Teams Roster works
-- How venue favorites work
-- Why some “Live” games disappear
-- How to show stale games
-- Where preferences are stored
-- How to reset the app
-
-## Data quality notes
-
-MyHockeyHub reflects the public data that GameSheet reports. Youth-hockey data can occasionally be incomplete or stale—for example, a game may remain marked Live if the scorer’s device never properly closed it. MyHockeyHub makes a few presentation-level inferences, such as classifying a Live game more than 24 hours past its start time as **stale**, but it does not alter the underlying source data.
+MyHockeyHub reflects public source data. Youth-hockey records can occasionally be incomplete, duplicated, stale, or incorrectly left in a Live state. MyHockeyHub may infer presentation state (for example, treating a Live game older than 24 hours as stale), but it does not rewrite the source record.
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
 
-GameSheet, team names, team logos, and league data remain the property of their respective owners. Their appearance here is for identification and display of publicly available hockey information.
+GameSheet, team names, team logos, and league data remain the property of their respective owners. Their appearance here is for identification and display of publicly available sports information.

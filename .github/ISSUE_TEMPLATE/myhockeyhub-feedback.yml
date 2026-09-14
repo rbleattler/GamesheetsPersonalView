@@ -1,0 +1,53 @@
+name: MyHockeyHub feedback
+description: Report a problem, data issue, question, or suggestion. Plain-language feedback is welcome.
+title: "[Feedback] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve MyHockeyHub. You do not need to be technical — describe what you saw in your own words.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of feedback is this?
+      options:
+        - Problem / bug
+        - Suggestion / feature request
+        - Data issue
+        - Question
+    validations:
+      required: true
+  - type: input
+    id: summary
+    attributes:
+      label: Short summary
+      placeholder: My team schedule is missing a game
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What happened, or what would you like to see?
+      description: Plain language is perfect.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: Optional. Skip this if it does not apply.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Optional. A simple sequence such as “Schedule → 12U A → tap game” is enough.
+  - type: input
+    id: league
+    attributes:
+      label: League / season
+      description: Optional. Include the league name or GameSheet season ID if you know it.
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or anything else
+      description: Optional. You can paste or drag screenshots directly into this field on GitHub.

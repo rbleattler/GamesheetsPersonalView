@@ -14,23 +14,23 @@
 <section id="updateCard" class="shell" hidden>
   <div class="brand"><div class="mark">◉</div><div><b>MyHockey<em>Hub</em></b><div style="color:var(--muted);font-size:.8rem">Stable latest-version link</div></div></div>
   <div id="kicker" class="kicker">Latest update</div>
-  <h1 id="title">What’s new in V3.5</h1>
+  <h1 id="title">What’s new in V3.6</h1>
   <p id="intro" class="intro">A few useful improvements landed since your last visit.</p>
   <div class="items">
-    <div class="item"><div class="check">✓</div><div><b>League / season search</b><span>Find known public GameSheet seasons by typing a league name, season name, familiar acronym, or season ID.</span></div></div>
-    <div class="item"><div class="check">✓</div><div><b>Careful acronym fallback</b><span>Explicit abbreviations rank highly; inferred acronyms such as DVHL are deliberately lower-confidence and rank behind normal name matches.</span></div></div>
-    <div class="item"><div class="check">✓</div><div><b>Manual fallback stays available</b><span>The catalog is refreshed periodically, so brand-new seasons can still be opened directly by GameSheet URL or season ID.</span></div></div>
+    <div class="item"><div class="check">✓</div><div><b>Friendlier first visit</b><span>New users are invited to choose their league or season before the app loads instead of silently landing in the original default league.</span></div></div>
+    <div class="item"><div class="check">✓</div><div><b>Help is always nearby</b><span>A ? button beside Settings opens quick guidance, the full FAQ, and feedback options.</span></div></div>
+    <div class="item"><div class="check">✓</div><div><b>Easier feedback</b><span>Build a plain-language report in the app and open a pre-filled GitHub issue, or use the guided GitHub issue form.</span></div></div>
   </div>
   <div id="originalNote" class="original" hidden>The page you originally used has been preserved as <b>V1</b>. This URL now always leads to the latest MyHockeyHub version, but you can go back to the original whenever you want.</div>
-  <div class="actions"><a href="index.html">Version history</a><a id="v1Link" href="v1.html" hidden>Open original V1</a><button id="continueBtn" class="primary">Continue to V3.5</button></div>
+  <div class="actions"><a href="index.html">Version history</a><a id="v1Link" href="v1.html" hidden>Open original V1</a><button id="continueBtn" class="primary">Continue to V3.6</button></div>
   <div class="note">MyHockeyHub is an independent project using publicly available GameSheet data. It is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.</div>
 </section>
 <section id="loading" class="loading"><div class="spinner"></div><b>Opening the latest MyHockeyHub…</b></section>
 </main>
 <script>
 (() => {
-  const CURRENT = '3.5';
-  const TARGET = 'v3.5.html';
+  const CURRENT = '3.6';
+  const TARGET = 'v3.6.html';
   const KEY = 'myhockeyhub.stableLastSeenVersion';
   const last = localStorage.getItem(KEY) || '';
   const legacy = !!(
@@ -43,8 +43,9 @@
   const modern = Object.keys(localStorage).some(k => k.startsWith('gsv3.'));
   const card = document.getElementById('updateCard');
   const loading = document.getElementById('loading');
-  const go = () => {
+  const go = (openFinder = false) => {
     localStorage.setItem(KEY, CURRENT);
+    if (openFinder) sessionStorage.setItem('myhockeyhub.openSeasonFinder', '1');
     loading.classList.add('show');
     card.hidden = true;
     location.replace(TARGET);
@@ -55,10 +56,19 @@
     return;
   }
 
-  // Truly new users do not need a changelog gate; send them straight to the app.
+  // A first-time visitor should choose the league/season that matters to them.
   if (!last && !legacy && !modern) {
-    localStorage.setItem(KEY, CURRENT);
-    location.replace(TARGET);
+    card.hidden = false;
+    document.getElementById('kicker').textContent = 'Welcome';
+    document.getElementById('title').textContent = 'Find your hockey';
+    document.getElementById('intro').textContent = 'Start by choosing the league or season you care about. You can change it anytime later from Settings.';
+    document.querySelector('.items').innerHTML = `
+      <div class="item"><div class="check">1</div><div><b>Choose your league</b><span>Search by league name, season name, familiar acronym, or GameSheet season ID.</span></div></div>
+      <div class="item"><div class="check">2</div><div><b>Add your teams and players</b><span>Personalize the app after the schedule loads.</span></div></div>
+      <div class="item"><div class="check">?</div><div><b>Help is built in</b><span>The ? button in the app opens quick help, the FAQ, and feedback options.</span></div></div>`;
+    const btn = document.getElementById('continueBtn');
+    btn.textContent = 'Choose league / season';
+    btn.onclick = () => go(true);
     return;
   }
 
@@ -70,7 +80,7 @@
     document.getElementById('originalNote').hidden = false;
     document.getElementById('v1Link').hidden = false;
   }
-  document.getElementById('continueBtn').onclick = go;
+  document.getElementById('continueBtn').onclick = () => go(false);
 })();
 </script>
 </body>

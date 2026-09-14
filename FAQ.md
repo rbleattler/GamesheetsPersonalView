@@ -1,156 +1,101 @@
 # MyHockeyHub FAQ / How-to
 
-This guide covers the parts of MyHockeyHub that are useful but not always obvious from a compact mobile interface.
+This is the practical guide for the things that are useful but not always obvious on a compact phone screen. In the app, tap **?** beside the hamburger menu for quick help and feedback options.
+
+## I’m new. Where do I start?
+
+Open the stable MyHockeyHub URL. On a first visit, MyHockeyHub asks you to choose a **league / season** before loading the schedule. After that, add your teams from **My Teams** and optionally follow players or favorite venues.
 
 ## How do I find or change leagues / seasons?
 
-Open **Settings → Find league / season**. Start typing a league name, part of a name, a season name, familiar acronym, or season ID. Results update immediately as you type.
+First-time users get the finder automatically. Later, open **Settings → Find league / season**. Results filter as you type. You can search by full name, part of a name, season name, familiar acronym, or numeric season ID.
 
-Direct text matches rank first. MyHockeyHub can also recognize explicit acronyms in GameSheet names and cautiously infer a familiar acronym when needed—for example, **DVHL** can suggest **Delaware Valley Hockey League**. Inferred acronyms are suggestions rather than authoritative league metadata and intentionally rank below direct name matches.
+Direct text matches rank first. Explicit acronyms in GameSheet names are recognized, and MyHockeyHub can cautiously infer common-style acronyms when needed—for example, **DVHL** can suggest **Delaware Valley Hockey League**. Inferred acronym results are intentionally lower-confidence.
 
-The catalog is refreshed periodically rather than live. If a new season is missing, enter its GameSheet season ID or season URL in the manual field at the bottom of the finder.
+## What if my league or season is missing?
+
+The searchable catalog is refreshed periodically rather than live. If a brand-new season is not present yet, use the manual GameSheet season URL / season ID field at the bottom of the finder.
 
 ## How do I add a team to My Teams?
 
 1. Open **My Teams**.
 2. Tap **Manage** or **Add**.
 3. Choose the **Division** first.
-4. Choose the **Team** from that division.
+4. Choose the **Team**.
 5. Tap **Add to My Teams**.
 
-You can save more than one team. This is useful for families with multiple players on different age levels or teams.
+You can save multiple teams for families with players in different divisions or organizations.
 
 ## How do I switch between My Teams?
 
-On the **My Teams** screen, use the team chips near the top of the view. The selected team becomes the active team for that page.
+Use the team chips near the top of **My Teams**. The selected team controls that page’s next game, recent results, upcoming schedule, and default roster.
 
-The active team controls the team-focused schedule, recent results, next game, and the default roster shown when you choose **Browse players**.
-
-## What does “My Teams only” mean in Schedule or Venues?
-
-It includes games involving **any** of your saved My Teams, not just the currently selected one.
+**My Teams only** filters in Schedule or Venues include games from any saved My Team, not just the currently selected one.
 
 ## How do I follow a player?
 
-There are several ways:
+The easiest path is **Players → Add Players**. Choose a division/team, check one or more players, then tap **Add Player(s)**. Already-followed players are labeled **Following**.
 
-- Open **Players → Add Players**, check one or more players, then tap **Add Player(s)**. The picker shows a live selection count and includes **Select all** / **Clear** actions.
-- Open **My Teams Roster** and tap the **☆ star** on a player card.
-- Open a game’s **Players** tab and tap the **☆ star** beside a player.
-
-A filled **★** elsewhere means the player is currently followed. In **Add Players**, already-followed players are labeled **Following** and cannot be selected again.
-
-## What is My Players?
-
-**My Players** is a saved list of individual players you care about across teams.
-
-Player cards can show season stats and recent game activity. Tapping a player name opens more detailed information, including recent games and recorded goal/assist events where available.
+You can also use the star on **My Teams Roster** or in a game’s **Players** tab. A filled **★** means that player is followed.
 
 ## How does My Teams Roster work?
 
-Open **Players**, then choose **My Teams Roster**.
-
-If you have more than one My Team, use the **Team roster** selector to switch between them.
-
-The roster is built from actual GameSheet game-lineup data for that specific team, then enriched with season standings/stat data where available.
+Open **Players → My Teams Roster**. If you saved more than one team, choose the team from the roster selector. The roster is based on actual GameSheet game-lineup data and is enriched with standings/stat data where available.
 
 ## How do I favorite a venue?
 
-Tap the **☆** beside a rink on a game card.
-
-A filled **★** means the venue is saved. Saved venues appear under the **Venues** tab, where you can quickly see games happening there.
-
-## What is the Venues view for?
-
-It turns your saved rinks into quick schedule views. You can see games at those locations for Today, This Weekend, the Next 7 Days, or all upcoming games.
-
-You can also choose **My Teams only** to show only games involving one of your saved teams.
-
-## Why did a game that GameSheet says is Live disappear?
-
-MyHockeyHub treats a game as **stale** when it is still reported as Live more than 24 hours after its scheduled start.
-
-This usually means the game was never properly closed on the scoring device, was a test game, or contains stale source data.
-
-Stale games are hidden by default so they do not look like real current live games.
-
-## Can I see stale games anyway?
-
-Yes.
-
-1. Open the hamburger menu.
-2. Open **Settings**.
-3. Enable **Show stale games**.
-
-When shown, stale games use a distinct stale treatment rather than appearing as normal live games.
+Tap the **☆** beside a rink on a game card. A filled **★** means it is saved. Favorite venues appear under **Venues**, where you can quickly see games there.
 
 ## How do I open game stats?
 
-For completed or live games, tap the game card or the **Stats** button.
+For completed or live games, tap the game card or **Stats**. The drawer can include score, shots, PIM, summary timeline, scoring, penalties, box score, and players. The **GameSheet ↗** link opens the original source page.
 
-The stats drawer includes:
+## Why did a GameSheet “Live” game disappear?
 
-- Score and team logos
-- Shots on goal
-- Penalty minutes
-- Timeline-style game summary
-- Scoring
-- Penalties
-- Box score
-- Players
+MyHockeyHub treats a game still marked Live more than 24 hours after its scheduled start as **stale**. These are often test games or games that were never properly ended on the scoring device. Stale games are hidden by default.
 
-There is also a small **GameSheet ↗** link if you want to open the original GameSheet page.
+To see them, open **Settings → Show stale games**.
 
-## What does the Game Summary show?
+## Why might a stat, player, or event be missing?
 
-The Summary is a chronological play-by-play of reported goals and penalties, grouped by period.
+MyHockeyHub can only show what is available in the public source data. Missing venue information, incomplete lineups, missing assists, incomplete player stats, duplicates, and stale statuses can all happen. MyHockeyHub avoids inventing source data.
 
-Goals use a goal-event icon such as **🚨**. Tapping an event expands more detail such as period, time, scorer, assists, team, and score-after where available.
+## What is the ? button?
 
-## Why might a stat or event be missing?
+The **?** button beside the hamburger menu opens **Help & feedback**. It includes quick reminders, a link to this full FAQ, and two ways to send feedback.
 
-MyHockeyHub can only display what is present in the public source data.
+## How do I report a problem or suggest something?
 
-Youth-hockey data is sometimes incomplete. Examples include:
+Tap **? → Report a problem or suggestion**. Describe what you saw in plain language. A short summary and a description are enough. Optional fields let you add what you expected and steps to reproduce.
 
-- Missing venue
-- Missing player/team association in a standings response
-- Missing assists
-- Games left in Live status
-- Incomplete player stats
+MyHockeyHub can attach basic context to the draft: app version, current view, league/season, page URL, browser description, and screen size. It does not include your saved teams or followed players.
 
-MyHockeyHub avoids inventing source data. It may infer presentation state—such as “stale live”—but does not change the underlying GameSheet record.
+Tap **Continue to GitHub** to review the pre-filled issue before submitting. You can also choose the **guided GitHub form** instead.
+
+## Can I attach screenshots?
+
+Yes, but the static MyHockeyHub site does not upload them directly. After GitHub opens, paste or drag screenshots into the issue before submitting. This avoids requiring MyHockeyHub to hold a GitHub token or ask for repository authorization.
+
+## Do I need a GitHub account to send feedback?
+
+A GitHub account is required to submit an issue. Reading the app and FAQ does not require one.
 
 ## How do I change light/dark mode?
 
-Open **Settings → Appearance** and choose:
-
-- **Follow device**
-- **Dark**
-- **Light**
+Open **Settings → Appearance** and choose **Follow device**, **Dark**, or **Light**.
 
 ## Where are my preferences stored?
 
-They are stored in your browser using `localStorage`.
-
-There is no MyHockeyHub account or server-side user profile.
-
-As a result, preferences do not automatically sync between devices or browsers.
+They are stored in your browser with `localStorage`. There is no MyHockeyHub account or server-side user profile, so settings do not automatically sync between devices or browsers.
 
 ## How do I reset everything?
 
-Open **Settings → App data → Clear all MyHockeyHub data**.
-
-This removes saved teams, players, venues, custom seasons, theme settings, and other local MyHockeyHub preferences from that browser.
+Open **Settings → App data → Clear all MyHockeyHub data**. This removes locally saved teams, players, venues, added seasons, theme settings, and other MyHockeyHub preferences from that browser.
 
 ## What is gamesheets_plus.html?
 
-It is the stable “latest version” URL. Instead of requiring people to bookmark a specific numbered release, it forwards users to the current MyHockeyHub version and can show a one-time What’s New screen after an upgrade.
-
-Older versions remain available from the project’s version-history page.
+It is the stable “latest version” URL. It can show first-run onboarding or a one-time What’s New message, then forwards to the current numbered version. Older versions stay available from the version-history page.
 
 ## Is MyHockeyHub affiliated with GameSheet?
 
-No.
-
-MyHockeyHub is an independent project that presents publicly available hockey data in a different interface. It is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.
+No. MyHockeyHub is an independent project that presents publicly available data in a different interface. It is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.
