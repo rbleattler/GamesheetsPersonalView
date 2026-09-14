@@ -66,6 +66,18 @@ const detailsActions = '<div class="actions"><a class="rowbtn" style="text-decor
 if (!appJs.includes(detailsActions)) throw new Error('Expected V3.6 game-details actions were not found.');
 appJs = appJs.replace(detailsActions, '<div class="actions"><a class="rowbtn" style="text-decoration:none" href="${escAttr(gs)}" target="_blank" rel="noopener">Open on GameSheet ↗</a>${broadcastAction(g)}</div>');
 
+const scoreLink = '<a class="score-gs" target="_blank" rel="noopener" href="${escAttr(gs)}">GameSheet ↗</a></div><div class="score-team">';
+if (!appJs.includes(scoreLink)) throw new Error('Expected V3.6 stats GameSheet link was not found.');
+appJs = appJs.replace(scoreLink, '<a class="score-gs" target="_blank" rel="noopener" href="${escAttr(gs)}">GameSheet ↗</a>${broadcastAction(g,\'score-gs watch-link\')}</div><div class="score-team">');
+
+const liveSnapshotMarker = 'd=firestoreData(await fetchJson(u)),total=d?.computed?.scoreboard?.total;if(!total||total.home==null||total.visitor==null)throw new Error(\'No live score\');return{...g,status:';
+if (!appJs.includes(liveSnapshotMarker)) throw new Error('Expected V3.6 live snapshot marker was not found.');
+appJs = appJs.replace(liveSnapshotMarker, 'd=firestoreData(await fetchJson(u)),enriched=window.MyHockeyHubFoundation.normalize.enrichGameBroadcast(g,d),total=d?.computed?.scoreboard?.total;if(!total||total.home==null||total.visitor==null)throw new Error(\'No live score\');return{...enriched,status:');
+
+const statsFetchMarker = 'd=firestoreData(await fetchJson(u));renderStats(g,boxFromFirestore(g,d))';
+if (!appJs.includes(statsFetchMarker)) throw new Error('Expected V3.6 stats fetch marker was not found.');
+appJs = appJs.replace(statsFetchMarker, 'd=firestoreData(await fetchJson(u)),enriched=window.MyHockeyHubFoundation.normalize.enrichGameBroadcast(g,d);Object.assign(g,enriched);renderStats(g,boxFromFirestore(g,d))');
+
 const pollerPattern = /async function pollLive\(\)\{[\s\S]*?\}\s*function startPolling\(\)\{[\s\S]*?\}\s*function updateStatus\(\)\{/;
 if (!pollerPattern.test(appJs)) throw new Error('Expected V3.6 live poller was not found.');
 appJs = appJs.replace(pollerPattern, `let liveRefreshService=null;
