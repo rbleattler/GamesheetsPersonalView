@@ -1,0 +1,107 @@
+name: PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: myhockeyhub-pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  PREVIEW_ROOT: https://rbleattler.com/GamesheetsPersonalView/pr-preview
+
+jobs:
+  deploy:
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install build dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate and build
+        run: |
+          npm run check
+          npm run build
+          npm run verify
+
+      - name: Publish PR preview
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./dist
+          destination_dir: pr-preview/pr-${{ github.event.pull_request.number }}
+          keep_files: true
+          enable_jekyll: false
+          commit_message: "preview: PR #${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }}"
+
+      - name: Add or update preview link on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- myhockeyhub-pr-preview -->';
+            const number = context.payload.pull_request.number;
+            const url = `${process.env.PREVIEW_ROOT}/pr-${number}/`;
+            const body = `${marker}\n🏒 **MyHockeyHub PR preview**\n\n${url}\n\nThis preview updates automatically when new commits are pushed to this PR.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: number,
+              per_page: 100
+            });
+            const existing = comments.find(c => c.user?.type === 'Bot' && c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number,
+                body
+              });
+            }
+
+  cleanup:
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout published site
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Remove closed PR preview
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          rm -rf "pr-preview/pr-${PR_NUMBER}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Preview already absent."
+            exit 0
+          fi
+          git commit -m "preview: remove PR #${PR_NUMBER}"
+          git push origin gh-pages
