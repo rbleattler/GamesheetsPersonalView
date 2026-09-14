@@ -1,0 +1,57 @@
+name: App shell CI
+
+on:
+  push:
+    branches:
+      - feature/app-shell-v4
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'data/**'
+      - 'package.json'
+      - '.github/workflows/app-shell-ci.yml'
+      - '.github/workflows/pages-production.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install build dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Fixture tests
+        run: npm test
+
+      - name: Build static site
+        run: npm run build
+
+      - name: Verify build output
+        run: npm run verify
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: myhockeyhub-static-site
+          path: dist/
+          if-no-files-found: error
+
+      # Intentionally no live GameSheet calls here. The public endpoints may be
+      # protected by Cloudflare/bot controls; deterministic CI uses local source
+      # and fixtures instead.

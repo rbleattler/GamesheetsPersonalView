@@ -1,0 +1,33 @@
+{
+  "status": "success",
+  "data": [
+    {
+      "gameId": "fixture-live-1",
+      "status": "live",
+      "location": "Example Ice Rink",
+      "visitor": {"id": "away-1", "title": "Away Team", "goals": 1},
+      "home": {"id": "home-1", "title": "Home Team", "goals": 2},
+      "broadcaster": {
+        "name": "LiveBarn",
+        "watchUrl": "https://livebarn.com/en/videoshare?vid=20260914T163000Z-example-game"
+      }
+    },
+    {
+      "gameId": "fixture-search-only",
+      "status": "scheduled",
+      "location": "Search Only Arena",
+      "visitor": {"id": "away-2", "title": "Visitors"},
+      "home": {"id": "home-2", "title": "Hosts"},
+      "broadcaster": {
+        "name": "LiveBarn",
+        "url": "https://livebarn.com/en/venue/search?q=Search%20Only%20Arena"
+      }
+    },
+    {
+      "gameId": "fixture-no-broadcast",
+      "status": "final",
+      "visitor": {"id": "away-3", "title": "Blue", "goals": 4},
+      "home": {"id": "home-3", "title": "Gold", "goals": 3}
+    }
+  ]
+}

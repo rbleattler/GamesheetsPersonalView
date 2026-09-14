@@ -1,0 +1,36 @@
+{
+  "snapshots": [
+    {
+      "gameId": "preview-replay-game",
+      "status": "scheduled",
+      "number": "SIM-1",
+      "location": "Replay Test Rink",
+      "visitor": {"id": "sim-away", "title": "Replay Away", "abbr": "RPA", "goals": 0},
+      "home": {"id": "sim-home", "title": "Replay Home", "abbr": "RPH", "goals": 0}
+    },
+    {
+      "gameId": "preview-replay-game",
+      "status": "live",
+      "number": "SIM-1",
+      "location": "Replay Test Rink",
+      "visitor": {"id": "sim-away", "title": "Replay Away", "abbr": "RPA", "goals": 1},
+      "home": {"id": "sim-home", "title": "Replay Home", "abbr": "RPH", "goals": 0}
+    },
+    {
+      "gameId": "preview-replay-game",
+      "status": "live",
+      "number": "SIM-1",
+      "location": "Replay Test Rink",
+      "visitor": {"id": "sim-away", "title": "Replay Away", "abbr": "RPA", "goals": 2},
+      "home": {"id": "sim-home", "title": "Replay Home", "abbr": "RPH", "goals": 2}
+    },
+    {
+      "gameId": "preview-replay-game",
+      "status": "final",
+      "number": "SIM-1",
+      "location": "Replay Test Rink",
+      "visitor": {"id": "sim-away", "title": "Replay Away", "abbr": "RPA", "goals": 3},
+      "home": {"id": "sim-home", "title": "Replay Home", "abbr": "RPH", "goals": 2}
+    }
+  ]
+}
