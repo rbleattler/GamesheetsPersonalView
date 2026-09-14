@@ -1,0 +1,34 @@
+name: Run V3.2 builder
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Restore builder payload
+        shell: bash
+        run: |
+          mkdir -p tools
+          python -c "from pathlib import Path; import base64,gzip; t=Path('.github/workflows/build-v3-2.yml').read_text(); b=t.split(\"<<'EOF'\\n\",1)[1].split('\\nEOF',1)[0].strip(); Path('tools/build_v3_2.py').write_bytes(gzip.decompress(base64.b64decode(b)))"
+      - name: Build V3.2
+        run: python tools/build_v3_2.py
+      - name: Validate inline JavaScript
+        shell: bash
+        run: |
+          python -c "from pathlib import Path; import re; s=Path('v3.2.html').read_text(); scripts=re.findall(r'<script>(.*?)</script>',s,flags=re.S); assert len(scripts)==1, len(scripts); Path('/tmp/v32.js').write_text(scripts[0])"
+          node --check /tmp/v32.js
+      - name: Commit V3.2
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add v3.2.html
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: add V3.2 team roster and player detail views"
+          git push origin HEAD:main
