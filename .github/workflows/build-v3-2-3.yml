@@ -1,12 +1,14 @@
 name: Build V3.2.3 preview
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+    paths:
+      - .github/workflows/build-v3-2-3.yml
 permissions:
   contents: write
 jobs:
   build:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,12 +50,9 @@ function sbox'''
           if n != 1:
               raise SystemExit(f'renderStats replacement count={n}')
 
-          # Keep the six team-stat boxes readable on phones.
           s = s.replace('@media(max-width:560px){', '@media(max-width:560px){.statsgrid{grid-template-columns:repeat(2,minmax(0,1fr))}', 1)
-
           Path('v3.2.3.html').write_text(s, encoding='utf-8')
 
-          # Update the stable latest-version entry and its one-time release notes.
           stable = Path('gamesheets_plus.html').read_text(encoding='utf-8')
           stable = stable.replace('V3.2.2', 'V3.2.3').replace("'3.2.2'", "'3.2.3'").replace("'v3.2.2.html'", "'v3.2.3.html'")
           start = stable.index('  <div class="items">')
@@ -62,7 +61,6 @@ function sbox'''
           stable = stable[:start] + items + stable[end:]
           Path('gamesheets_plus.html').write_text(stable, encoding='utf-8')
 
-          # Add V3.2.3 to the version-history page and move the Current badge.
           index = Path('index.html').read_text(encoding='utf-8')
           index = index.replace('<div class="version"><div class="tag current">V3.2.2</div>', '<div class="version"><div class="tag">V3.2.2</div>', 1)
           marker = '<section class="versions">\n'
@@ -72,7 +70,6 @@ function sbox'''
           index = index.replace(marker, marker + card, 1)
           Path('index.html').write_text(index, encoding='utf-8')
           PY
-
       - name: Validate inline JavaScript
         shell: bash
         run: |
@@ -87,7 +84,6 @@ function sbox'''
           assert 'compareGameEvents' in s
           PY
           node --check /tmp/app.js
-
       - name: Commit V3.2.3
         shell: bash
         run: |
