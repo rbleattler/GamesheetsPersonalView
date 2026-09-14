@@ -181,26 +181,42 @@
 
   function renderBroadcastLink() {
     if (!drawerBody) return;
-    drawerBody.querySelectorAll('[data-broadcast-watch],[data-livebarn-venue-drawer]').forEach(node => node.remove());
-    drawerBody.querySelectorAll('.watch-link:not([data-livebarn-venue])').forEach(node => node.remove());
-
     const scoreCenter = drawerBody.querySelector('.game-scoreboard .score-center');
     const actions = drawerBody.querySelector('.actions');
+    const target = scoreCenter || actions;
+    const existing = drawerBody.querySelector('[data-broadcast-watch],[data-livebarn-venue-drawer]');
 
+    let desired = null;
     if (activeBroadcast?.available) {
-      const link = makeWatchLink(activeBroadcast, scoreCenter ? 'score-gs watch-link' : 'rowbtn watch-link');
-      if (scoreCenter) scoreCenter.appendChild(link);
-      else if (actions) actions.appendChild(link);
+      desired = {
+        kind: 'game',
+        url: activeBroadcast.url,
+        text: `▶ ${activeBroadcast.label || 'Watch'}${activeBroadcast.provider ? ` · ${activeBroadcast.provider}` : ''} ↗`
+      };
+    } else if (activeVenue?.url) {
+      desired = { kind: 'venue', url: activeVenue.url, text: 'LiveBarn venue ↗' };
+    }
+
+    if (!desired || !target) {
+      existing?.remove();
       return;
     }
 
-    if (activeVenue?.url) {
-      const link = makeVenueLink(activeVenue, scoreCenter ? 'score-gs watch-link' : 'rowbtn watch-link');
-      link.dataset.livebarnVenueDrawer = 'true';
-      link.textContent = 'LiveBarn venue ↗';
-      if (scoreCenter) scoreCenter.appendChild(link);
-      else if (actions) actions.appendChild(link);
-    }
+    if (
+      existing &&
+      existing.parentElement === target &&
+      existing.href === new URL(desired.url, location.href).href &&
+      existing.textContent === desired.text
+    ) return;
+
+    existing?.remove();
+    target.querySelectorAll('.watch-link').forEach(node => node.remove());
+
+    const link = desired.kind === 'game'
+      ? makeWatchLink(activeBroadcast, scoreCenter ? 'score-gs watch-link' : 'rowbtn watch-link')
+      : makeVenueLink(activeVenue, scoreCenter ? 'score-gs watch-link' : 'rowbtn watch-link');
+    if (desired.kind === 'venue') link.dataset.livebarnVenueDrawer = 'true';
+    target.appendChild(link);
   }
 
   async function hydrateBroadcast(gameId) {
