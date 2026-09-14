@@ -1,0 +1,47 @@
+name: Fix V2 stats logos
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Prefer unified-games logo URLs in stats drawer
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('v2.html')
+          s = p.read_text()
+          old = "logo:data?.details?.logo||base?.logo||''"
+          new = "logo:base?.logo||data?.details?.logo||''"
+          count = s.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one stats logo expression, found {count}')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Validate inline JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s = Path('v2.html').read_text()
+          scripts = re.findall(r'<script>(.*?)</script>', s, flags=re.S)
+          if len(scripts) != 1:
+              raise SystemExit(f'Expected one inline script, got {len(scripts)}')
+          Path('/tmp/v2.js').write_text(scripts[0])
+          PY
+          node --check /tmp/v2.js
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add v2.html
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: show team logos in V2 stats drawer"
+          git push origin HEAD:main
