@@ -1,0 +1,37 @@
+name: Fix V3.4
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-v3-4.yml
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply V3.4 hardening
+        run: python3 tools/fix_v3_4.py
+      - name: Validate inline JavaScript
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          s=Path('v3.4.html').read_text(encoding='utf-8')
+          Path('/tmp/app.js').write_text('\n'.join(re.findall(r'<script>(.*?)</script>',s,re.S)),encoding='utf-8')
+          assert "if(!divisionId)return''" in s
+          assert 'myTeamsMigrated' in s
+          PY
+          node --check /tmp/app.js
+      - name: Commit hardening
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add v3.4.html
+          git commit -m 'fix: harden My Teams migration and picker'
+          git push
