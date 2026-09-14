@@ -50,6 +50,22 @@ jobs:
           enable_jekyll: false
           commit_message: "preview: PR #${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }}"
 
+      - name: Verify production root stayed unchanged
+        shell: bash
+        run: |
+          git fetch --no-tags --depth=1 origin \
+            main:refs/remotes/origin/main \
+            gh-pages:refs/remotes/origin/gh-pages
+          for path in index.html gamesheets_plus.html v3.6.html; do
+            git show "origin/main:${path}" > /tmp/main-file
+            git show "origin/gh-pages:${path}" > /tmp/pages-file
+            if ! cmp -s /tmp/main-file /tmp/pages-file; then
+              echo "::error file=${path}::PR preview deployment changed the production-root copy of ${path}."
+              exit 1
+            fi
+          done
+          echo "Production root matches main; preview remains isolated."
+
       - name: Add or update preview link on PR
         uses: actions/github-script@v7
         with:
@@ -57,7 +73,7 @@ jobs:
             const marker = '<!-- myhockeyhub-pr-preview -->';
             const number = context.payload.pull_request.number;
             const url = `${process.env.PREVIEW_ROOT}/pr-${number}/`;
-            const body = `${marker}\n🏒 **MyHockeyHub PR preview**\n\n${url}\n\nThis preview updates automatically when new commits are pushed to this PR.`;
+            const body = `${marker}\n🏒 **MyHockeyHub PR preview**\n\n${url}\n\nThis preview updates automatically when new commits are pushed to this PR. Production-root entry files are verified unchanged after each preview deployment.`;
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
