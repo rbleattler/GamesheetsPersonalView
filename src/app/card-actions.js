@@ -39,11 +39,7 @@
     const gameSheet = foot.querySelector('a[href*="gamesheetstats.com/seasons/"]');
     const liveBarn = foot.querySelector('a[href*="livebarn.com"]');
     const stats = foot.querySelector('button.stats');
-
-    // Scheduled cards have no Stats action and normally no broadcaster action.
-    // Leave those cards in their existing compact layout rather than creating
-    // a one-button footer row.
-    if (!liveBarn && !stats) return;
+    if (!gameSheet && !liveBarn && !stats) return;
 
     let row = foot.querySelector(':scope > .game-action-row');
     if (!row) {
@@ -53,6 +49,14 @@
     }
 
     foot.querySelectorAll('.stats-hint').forEach(node => node.remove());
+    for (const node of [...foot.childNodes]) {
+      if (node === row || node.nodeType !== Node.TEXT_NODE) continue;
+      if (node.textContent?.trim().toLowerCase() === 'scheduled') node.remove();
+    }
+    for (const node of [...foot.children]) {
+      if (node === row) continue;
+      if (node.matches?.('.muted') && node.textContent?.trim().toLowerCase() === 'scheduled') node.remove();
+    }
 
     if (gameSheet) {
       gameSheet.className = 'game-action game-action-secondary gamesheet-action';
