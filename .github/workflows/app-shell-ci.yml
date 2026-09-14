@@ -8,6 +8,7 @@ on:
     paths:
       - 'src/**'
       - 'scripts/**'
+      - 'tests/**'
       - 'data/**'
       - 'v3.6.html'
       - 'versions.html'
@@ -35,6 +36,9 @@ jobs:
 
       - name: Syntax check
         run: npm run check
+
+      - name: Fixture tests
+        run: npm test
 
       - name: Build static site
         run: npm run build
