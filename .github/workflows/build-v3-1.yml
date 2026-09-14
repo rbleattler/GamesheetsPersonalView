@@ -13,7 +13,7 @@ jobs:
         with:
           ref: main
       - name: Build V3.1
-        run: python tools/build_v3_1.py
+        run: python tools/build_v3_1_fixed.py
       - name: Validate inline JavaScript
         run: |
           python - <<'PY'
