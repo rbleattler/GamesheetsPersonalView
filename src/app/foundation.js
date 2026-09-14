@@ -60,22 +60,56 @@ function classifyBroadcastUrl(value){
 }
 
 function candidateBroadcastUrls(raw){
-  const candidates=[];
-  const push=value=>{if(typeof value==='string'&&value.trim())candidates.push(value.trim())};
-  const b=raw?.broadcaster??raw?.broadcast??raw?.stream??raw?.video??raw?.vod;
-  push(raw?.broadcastUrl);push(raw?.watchUrl);push(raw?.streamUrl);push(raw?.videoUrl);push(raw?.vodUrl);
-  if(typeof b==='string')push(b);
-  if(b&&typeof b==='object'){
-    for(const key of ['url','href','link','watchUrl','streamUrl','videoUrl','vodUrl','liveUrl','replayUrl'])push(b[key]);
-  }
-  return[...new Set(candidates)];
+  const candidates=[],seen=new Set();
+  const urlKey=/^(?:url|href|link|watchurl|streamurl|videourl|vodurl|liveurl|replayurl|broadcasturl)$/i;
+  const broadcastKey=/(?:broadcast|broadcaster|stream|video|vod|livebarn|watch|replay)/i;
+  const push=value=>{
+    if(typeof value!=='string')return;
+    const v=value.trim();
+    if(!v||!/^https?:\/\//i.test(v)||seen.has(v))return;
+    seen.add(v);candidates.push(v);
+  };
+  const walk=(value,depth=0,context='')=>{
+    if(value==null||depth>7)return;
+    if(typeof value==='string'){
+      if(broadcastKey.test(context)||/livebarn\.com/i.test(value))push(value);
+      return;
+    }
+    if(Array.isArray(value)){
+      for(const item of value.slice(0,40))walk(item,depth+1,context);
+      return;
+    }
+    if(typeof value!=='object')return;
+    for(const [key,child] of Object.entries(value)){
+      const nextContext=broadcastKey.test(key)||broadcastKey.test(context)?`${context}.${key}`:key;
+      if(typeof child==='string'&&(urlKey.test(key)||broadcastKey.test(key)||broadcastKey.test(context)))push(child);
+      if(child&&typeof child==='object')walk(child,depth+1,nextContext);
+    }
+  };
+  walk(raw);
+  return candidates;
+}
+
+function broadcastKind(raw){
+  let found='';
+  const walk=(value,depth=0,context='')=>{
+    if(found||value==null||depth>6)return;
+    if(Array.isArray(value)){for(const item of value.slice(0,30))walk(item,depth+1,context);return}
+    if(typeof value!=='object')return;
+    for(const [key,child] of Object.entries(value)){
+      const relevant=/(?:broadcast|broadcaster|stream|video|vod|livebarn|watch|replay)/i.test(key)||/(?:broadcast|broadcaster)/i.test(context);
+      if(relevant&&/^(?:type|kind|mode|status)$/i.test(key)&&typeof child==='string'){found=child.toLowerCase();return}
+      if(child&&typeof child==='object')walk(child,depth+1,relevant?`${context}.${key}`:key);
+    }
+  };
+  walk(raw);
+  return found;
 }
 
 function normalizeBroadcaster(raw){
   const candidates=candidateBroadcastUrls(raw).map(classifyBroadcastUrl);
   const usable=candidates.find(x=>x.actionable)||null;
-  const meta=raw?.broadcaster??raw?.broadcast??null;
-  const kind=String(meta?.type??meta?.kind??raw?.broadcastType??'').toLowerCase();
+  const kind=broadcastKind(raw);
   const label=kind.includes('vod')||kind.includes('replay')?'Replay':kind.includes('live')?'Live':'Watch';
   return{
     available:!!usable,
@@ -87,9 +121,22 @@ function normalizeBroadcaster(raw){
   };
 }
 
+function richerBroadcast(...sources){
+  const normalized=sources.filter(Boolean).map(normalizeBroadcaster);
+  const actionable=normalized.find(x=>x.available);
+  if(actionable)return actionable;
+  const all=normalized.flatMap(x=>x.candidates||[]),seen=new Set(),candidates=[];
+  for(const item of all){const key=`${item.url}|${item.reason}`;if(!seen.has(key)){seen.add(key);candidates.push(item)}}
+  return{available:false,url:'',provider:'',label:'Watch',suppressed:candidates.filter(x=>!x.actionable),candidates};
+}
+
 function normalizeGame(raw){
   if(!raw||typeof raw!=='object')return raw;
-  return{...raw,_broadcast:normalizeBroadcaster(raw)};
+  return{...raw,_broadcast:richerBroadcast(raw)};
+}
+function enrichGameBroadcast(game,...extraSources){
+  if(!game||typeof game!=='object')return game;
+  return{...game,_broadcast:richerBroadcast(game,game._broadcast,...extraSources)};
 }
 function normalizeGames(body){
   const data=dataOf(body);
@@ -209,8 +256,8 @@ const apiClient=createApiClient();
 globalThis.MyHockeyHubFoundation={
   API_BASE,
   api:{...apiClient,createClient:createApiClient},
-  normalize:{dataOf,firstData,game:normalizeGame,games:normalizeGames,broadcaster:normalizeBroadcaster,standingRows:extractStandingRows,standingPlayer:normalizeStandingPlayer,standingPlayers:normalizeStandingPlayers},
-  broadcast:{classifyUrl:classifyBroadcastUrl,isGenericLiveBarnUrl},
+  normalize:{dataOf,firstData,game:normalizeGame,games:normalizeGames,enrichGameBroadcast,broadcaster:normalizeBroadcaster,standingRows:extractStandingRows,standingPlayer:normalizeStandingPlayer,standingPlayers:normalizeStandingPlayers},
+  broadcast:{classifyUrl:classifyBroadcastUrl,isGenericLiveBarnUrl,candidates:candidateBroadcastUrls},
   live:{createRefreshService:createLiveRefreshService},
   replay:{createController:createReplayController}
 };
