@@ -145,8 +145,8 @@ await cp(join(root, 'FAQ.md'), join(out, 'FAQ.md'));
 await cp(join(root, 'LICENSE'), join(out, 'LICENSE'));
 
 const compatibilityRedirect = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=app/"><title>Opening MyHockeyHub…</title></head>
-<body><p>Opening <a href="app/">MyHockeyHub</a>…</p><script>location.replace('app/'+location.search+location.hash)</script></body></html>`;
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=./"><title>Opening MyHockeyHub…</title></head>
+<body><p>Opening <a href="./">MyHockeyHub</a>…</p><script>location.replace('./')</script></body></html>`;
 await write('gamesheets_plus.html', compatibilityRedirect);
 
 console.log('Built MyHockeyHub static site in dist/.');
