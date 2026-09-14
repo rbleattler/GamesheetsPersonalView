@@ -2,6 +2,14 @@
 
 This guide covers the parts of MyHockeyHub that are useful but not always obvious from a compact mobile interface.
 
+## How do I find or change leagues / seasons?
+
+Open **Settings → Find league / season**. Start typing a league name, part of a name, a season name, familiar acronym, or season ID. Results update immediately as you type.
+
+Direct text matches rank first. MyHockeyHub can also recognize explicit acronyms in GameSheet names and cautiously infer a familiar acronym when needed—for example, **DVHL** can suggest **Delaware Valley Hockey League**. Inferred acronyms are suggestions rather than authoritative league metadata and intentionally rank below direct name matches.
+
+The catalog is refreshed periodically rather than live. If a new season is missing, enter its GameSheet season ID or season URL in the manual field at the bottom of the finder.
+
 ## How do I add a team to My Teams?
 
 1. Open **My Teams**.
@@ -26,13 +34,11 @@ It includes games involving **any** of your saved My Teams, not just the current
 
 There are several ways:
 
-- Open **Players → Add Players** and tap the **☆ star** next to the player.
+- Open **Players → Add Players**, check one or more players, then tap **Add Player(s)**. The picker shows a live selection count and includes **Select all** / **Clear** actions.
 - Open **My Teams Roster** and tap the **☆ star** on a player card.
 - Open a game’s **Players** tab and tap the **☆ star** beside a player.
 
-A filled **★** means the player is currently followed.
-
-> **Important:** In the Add Players screen, tapping the player name opens player details. **Tapping the star is what adds the player to My Players.**
+A filled **★** elsewhere means the player is currently followed. In **Add Players**, already-followed players are labeled **Following** and cannot be selected again.
 
 ## What is My Players?
 

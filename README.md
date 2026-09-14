@@ -20,6 +20,8 @@ MyHockeyHub currently supports:
 
 - Full-season schedule browsing and search
 - Type-ahead league / season discovery from a periodically refreshed local catalog
+- Conservative acronym fallback for familiar league abbreviations such as DVHL
+- Type-ahead league / season discovery from a periodically refreshed local catalog
 - Division, team, date-range, rink, and status filtering
 - Multiple **My Teams** for families with players on different teams
 - Division-first team selection
@@ -80,6 +82,8 @@ Major milestones include:
 - **V3.3** — compact scoreboard, box score, and timeline-style play-by-play
 - **V3.4** — multiple My Teams and stale-live-game handling
 - **V3.4.1** — natural age/tier ordering for division selectors
+- **V3.4.2** — explicit Add Players multi-selection flow
+- **V3.5** — searchable league/season catalog with cautious acronym matching
 - **V3.4.2** — clearer multi-player selection flow
 - **V3.5** — searchable league/season catalog with conservative acronym matching
 
@@ -106,6 +110,14 @@ Some features are intentionally compact on mobile and are not immediately obviou
 - How to show stale games
 - Where preferences are stored
 - How to reset the app
+
+## League / season catalog
+
+The app cannot use GameSheet’s partner-only season-directory search API, so MyHockeyHub ships a periodically refreshed snapshot at [`data/seasons.json`](data/seasons.json). The finder searches that file locally in the browser; normal app use does not scrape season IDs.
+
+Search ranking favors exact names, starts-with and token matches, explicit acronyms already present in a season name, and current/recent seasons. Generated acronyms are deliberately conservative: for example, **Delaware Valley Hockey League** can be found with **DVHL**, but inferred acronym matches rank below direct textual matches and require an exact acronym match.
+
+The snapshot can lag newly created seasons, so the finder retains a direct GameSheet season ID / URL fallback.
 
 ## Data quality notes
 
