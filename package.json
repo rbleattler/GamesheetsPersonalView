@@ -1,0 +1,14 @@
+{
+  "name": "myhockeyhub",
+  "private": true,
+  "version": "4.0.0-beta.0",
+  "type": "module",
+  "scripts": {
+    "check": "node --check scripts/build.mjs && node --check scripts/verify-build.mjs && node --check src/app/router.js",
+    "build": "node scripts/build.mjs",
+    "verify": "node scripts/verify-build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
