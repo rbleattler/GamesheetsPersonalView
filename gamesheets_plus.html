@@ -14,21 +14,23 @@
 <section id="updateCard" class="shell" hidden>
   <div class="brand"><div class="mark">◉</div><div><b>MyHockey<em>Hub</em></b><div style="color:var(--muted);font-size:.8rem">Stable latest-version link</div></div></div>
   <div id="kicker" class="kicker">Latest update</div>
-  <h1 id="title">What’s new in V3.4.2</h1>
+  <h1 id="title">What’s new in V3.5</h1>
   <p id="intro" class="intro">A few useful improvements landed since your last visit.</p>
   <div class="items">
-    <div class="item"><div class="check">✓</div><div><b>Clearer player selection</b><span>Add Players now uses explicit checkboxes, a live selection count, Select all / Clear actions, and a final Add Players button.</span></div></div>
+    <div class="item"><div class="check">✓</div><div><b>League / season search</b><span>Find known GameSheet seasons by typing a league name, season name, or numeric season ID instead of needing the exact URL.</span></div></div>
+    <div class="item"><div class="check">✓</div><div><b>Conservative acronym matching</b><span>Common-style abbreviations such as DVHL can match inferred league initials, but only as a lower-priority fallback behind real text matches.</span></div></div>
+    <div class="item"><div class="check">✓</div><div><b>Manual fallback stays available</b><span>The catalog is refreshed periodically, so a brand-new season can still be added immediately by pasting its GameSheet URL or season ID.</span></div></div>
   </div>
   <div id="originalNote" class="original" hidden>The page you originally used has been preserved as <b>V1</b>. This URL now always leads to the latest MyHockeyHub version, but you can go back to the original whenever you want.</div>
-  <div class="actions"><a href="index.html">Version history</a><a id="v1Link" href="v1.html" hidden>Open original V1</a><button id="continueBtn" class="primary">Continue to V3.4.2</button></div>
+  <div class="actions"><a href="index.html">Version history</a><a id="v1Link" href="v1.html" hidden>Open original V1</a><button id="continueBtn" class="primary">Continue to V3.5</button></div>
   <div class="note">MyHockeyHub is an independent project using publicly available GameSheet data. It is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.</div>
 </section>
 <section id="loading" class="loading"><div class="spinner"></div><b>Opening the latest MyHockeyHub…</b></section>
 </main>
 <script>
 (() => {
-  const CURRENT = '3.4.2';
-  const TARGET = 'v3.4.2.html';
+  const CURRENT = '3.5';
+  const TARGET = 'v3.5.html';
   const KEY = 'myhockeyhub.stableLastSeenVersion';
   const last = localStorage.getItem(KEY) || '';
   const legacy = !!(

@@ -10,7 +10,7 @@ It started as a simple way to make a very large league schedule easier to browse
 
 - **Stable latest version:** https://rbleattler.com/GamesheetsPersonalView/gamesheets_plus.html
 - **Version history / project evolution:** https://rbleattler.com/GamesheetsPersonalView/
-- **Current numbered version:** `v3.4.1.html`
+- **Current numbered version:** `v3.5.html`
 
 The stable `gamesheets_plus.html` URL is intended to remain shareable over time. It points users to the current version and can show a one-time “What’s new” message when the version changes.
 
@@ -19,6 +19,7 @@ The stable `gamesheets_plus.html` URL is intended to remain shareable over time.
 MyHockeyHub currently supports:
 
 - Full-season schedule browsing and search
+- Type-ahead league / season discovery from a periodically refreshed local catalog
 - Division, team, date-range, rink, and status filtering
 - Multiple **My Teams** for families with players on different teams
 - Division-first team selection
@@ -47,6 +48,12 @@ The project intentionally stays simple:
 
 The application reads public GameSheet/`gamesheetstats.com` data in the browser and renders it into a more personalized mobile experience.
 
+## Season catalog
+
+`data/seasons.json` is a manually refreshed snapshot of publicly discoverable GameSheet seasons. It powers the in-app league/season finder without requiring GameSheet's partner-only season-search API.
+
+The catalog is intentionally treated as a convenience index rather than an authoritative live directory. New seasons can appear after the snapshot is generated, so the app keeps the direct GameSheet season URL / season-ID entry path as a fallback. Search favors exact and normal text matches first; inferred acronyms are used only as a lower-confidence fallback.
+
 ## Privacy and local data
 
 Saved settings such as My Teams, favorite venues, followed players, selected season, and appearance preferences are stored locally in the browser.
@@ -73,6 +80,8 @@ Major milestones include:
 - **V3.3** — compact scoreboard, box score, and timeline-style play-by-play
 - **V3.4** — multiple My Teams and stale-live-game handling
 - **V3.4.1** — natural age/tier ordering for division selectors
+- **V3.4.2** — clearer multi-player selection flow
+- **V3.5** — searchable league/season catalog with conservative acronym matching
 
 ## Quick start
 
