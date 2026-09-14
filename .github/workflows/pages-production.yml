@@ -6,14 +6,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: myhockeyhub-production-pages
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -24,26 +26,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
 
       - name: Install build dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
-      - name: Validate and build
+      - name: Validate, test, and build
         run: |
           npm run check
+          npm test
           npm run build
           npm run verify
 
-      - name: Publish production site
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: ./dist
-          keep_files: true
-          enable_jekyll: false
-          commit_message: "pages: production @ ${{ github.sha }}"
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
 
-      # keep_files preserves pr-preview/ while production files at the branch
-      # root are replaced by the latest build. The branch is intentionally the
-      # shared filesystem for production + disposable PR previews.
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
