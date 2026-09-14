@@ -10,17 +10,24 @@ const read = path => readFile(join(root, path), 'utf8');
 const readDist = path => readFile(join(dist, path), 'utf8');
 const writeDist = (path, content) => writeFile(join(dist, path), content);
 
-const [guardSource, venueLinksSource] = await Promise.all([
+const [guardSource, venueLinksSource, cardActionsSource, cardActionsCss] = await Promise.all([
   read('src/app/fetch-guard.js'),
-  read('src/app/venue-links.js')
+  read('src/app/venue-links.js'),
+  read('src/app/card-actions.js'),
+  read('src/app/card-actions.css')
 ]);
-const [{ code: minGuard }, { code: minVenueLinks }] = await Promise.all([
+const [{ code: minGuard }, { code: minVenueLinks }, { code: minCardActions }, { code: minCardActionsCss }] = await Promise.all([
   transform(guardSource, { loader: 'js', minify: true, target: 'es2022' }),
-  transform(venueLinksSource, { loader: 'js', minify: true, target: 'es2022' })
+  transform(venueLinksSource, { loader: 'js', minify: true, target: 'es2022' }),
+  transform(cardActionsSource, { loader: 'js', minify: true, target: 'es2022' }),
+  transform(cardActionsCss, { loader: 'css', minify: true })
 ]);
+const existingAppCss = await readDist('assets/app.css');
 await Promise.all([
   writeDist('assets/fetch-guard.js', minGuard),
-  writeDist('assets/venue-links.js', minVenueLinks)
+  writeDist('assets/venue-links.js', minVenueLinks),
+  writeDist('assets/card-actions.js', minCardActions),
+  writeDist('assets/app.css', `${existingAppCss}\n${minCardActionsCss}`)
 ]);
 
 const assetPaths = [
@@ -29,6 +36,7 @@ const assetPaths = [
   'assets/app.js',
   'assets/router.js',
   'assets/venue-links.js',
+  'assets/card-actions.js',
   'assets/diagnostics.js',
   'assets/site.css',
   'assets/fetch-guard.js'
@@ -52,10 +60,10 @@ appHtml = appHtml.replace(
 );
 appHtml = appHtml.replace(
   '<script src="../assets/diagnostics.js" defer></script>',
-  '<script src="../assets/venue-links.js" defer></script>\n<script src="../assets/diagnostics.js" defer></script>'
+  '<script src="../assets/venue-links.js" defer></script>\n<script src="../assets/card-actions.js" defer></script>\n<script src="../assets/diagnostics.js" defer></script>'
 );
 appHtml = appHtml.replace(
-  /\.\.\/assets\/(?:app\.css|foundation\.js|app\.js|router\.js|venue-links\.js|diagnostics\.js|fetch-guard\.js)(?:\?v=[a-f0-9]+)?/g,
+  /\.\.\/assets\/(?:app\.css|foundation\.js|app\.js|router\.js|venue-links\.js|card-actions\.js|diagnostics\.js|fetch-guard\.js)(?:\?v=[a-f0-9]+)?/g,
   match => versionAsset(match)
 );
 await writeDist('app/index.html', appHtml);
