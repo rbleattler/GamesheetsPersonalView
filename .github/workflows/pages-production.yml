@@ -1,0 +1,49 @@
+name: Production Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: myhockeyhub-production-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install build dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate and build
+        run: |
+          npm run check
+          npm run build
+          npm run verify
+
+      - name: Publish production site
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./dist
+          keep_files: true
+          enable_jekyll: false
+          commit_message: "pages: production @ ${{ github.sha }}"
+
+      # keep_files preserves pr-preview/ while production files at the branch
+      # root are replaced by the latest build. The branch is intentionally the
+      # shared filesystem for production + disposable PR previews.
