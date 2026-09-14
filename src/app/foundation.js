@@ -75,6 +75,17 @@ function normalizeGames(body){
   return(Array.isArray(data)?data:[]).map(normalizeGame);
 }
 
+function createReplayController(snapshots,{normalize=normalizeGame}={}){
+  const rows=(Array.isArray(snapshots)?snapshots:[]).map(x=>normalize({...x}));
+  let index=0;
+  const current=()=>rows[index]||null;
+  const state=()=>({index,total:rows.length,done:rows.length===0||index===rows.length-1,current:current()});
+  const reset=()=>{index=0;return state()};
+  const step=()=>{if(rows.length&&index<rows.length-1)index++;return state()};
+  const seek=value=>{if(!rows.length)return state();const n=Math.max(0,Math.min(rows.length-1,Number(value)||0));index=n;return state()};
+  return{current,state,reset,step,seek};
+}
+
 function createLiveRefreshService({
   intervalMs=30000,
   getVisibleLive,
@@ -128,5 +139,6 @@ globalThis.MyHockeyHubFoundation={
   api:{fetchJson},
   normalize:{dataOf,firstData,game:normalizeGame,games:normalizeGames,broadcaster:normalizeBroadcaster},
   broadcast:{classifyUrl:classifyBroadcastUrl,isGenericLiveBarnUrl},
-  live:{createRefreshService:createLiveRefreshService}
+  live:{createRefreshService:createLiveRefreshService},
+  replay:{createController:createReplayController}
 };
