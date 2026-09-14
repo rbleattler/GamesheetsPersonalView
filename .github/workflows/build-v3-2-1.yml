@@ -1,0 +1,75 @@
+name: Build V3.2.1 preview
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Build V3.2.1
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          src = Path('v3.2.html').read_text()
+          text = src.replace('V3.2', 'V3.2.1')
+
+          def replace_block(s, start_marker, end_marker, replacement):
+              a = s.index(start_marker)
+              b = s.index(end_marker, a)
+              return s[:a] + replacement.rstrip() + '\n' + s[b:]
+
+          roster = r'''async function rosterFallback(teamIds,divisionId){const all=[];for(const teamId of teamIds){const now=new Date(),games=state.games.filter(g=>hasTeam(g,teamId)&&gameDate(g)<=now).sort((a,b)=>gameDate(b)-gameDate(a));for(const g of games.slice(0,8)){try{const u=`https://firestore.googleapis.com/v1/projects/gamesheet-production/databases/(default)/documents/seasons/${state.seasonId}/games/${g.gameId}`,d=firestoreData(await fetchJson(u)),side=String(g.home?.id)===String(teamId)?'home':'visitor',team=g[side]||{},players=d?.data?.[side]?.lineup?.players||[];for(const p of players){const np=normalizePlayer({player:p,team,division:team.division},String(p.position||'').toLowerCase().includes('goalie')?'goalie':'skater',divisionId);if(np.id&&np.name)all.push({...np,teamId:String(teamId),teamTitle:team.title||np.teamTitle||'',teamLogo:team.logo||np.teamLogo||'',teamAbbr:team.abbr||np.teamAbbr||'',divisionId:String(divisionId)})}}catch(e){console.warn('Roster fallback failed for game',g.gameId,e)}}}return dedupePlayers(all)}'''
+          text = replace_block(text, 'async function rosterFallback(teamIds,divisionId){', 'async function loadPlayerPicker(){', roster)
+
+          picker = r'''async function loadPlayerPicker(){const d=$('#playerDivision')?.value,teamIds=String($('#playerTeam')?.value||'').split(',').filter(Boolean);if(!d)return;$('#playerPickerStatus').textContent='Loading players…';try{const key=`${state.seasonId}:${d}:${teamIds.join(',')||'all'}`;if(!state.playerCache[key]){const base=`?limit=500&offset=0&division=${encodeURIComponent(d)}&gameType=regular_season`,[sk,go]=await Promise.allSettled([fetchJson(`${API}/players/standings/${state.seasonId}${base}&sort=-pts`),fetchJson(`${API}/goalies/standings/${state.seasonId}${base}&sort=gaa`)]),rows=[];if(sk.status==='fulfilled')rows.push(...normalizePlayerResponse(sk.value,'skater',d));if(go.status==='fulfilled')rows.push(...normalizePlayerResponse(go.value,'goalie',d));let exact=[];if(teamIds.length){exact=await rosterFallback(teamIds,d);rows.push(...exact)}let merged=dedupePlayers(rows);if(teamIds.length){const rosterIds=new Set(exact.map(p=>String(p.id)));merged=merged.filter(p=>(p.teamId&&teamIds.includes(String(p.teamId)))||rosterIds.has(String(p.id)))}state.playerCache[key]=merged}renderPlayerPicker();$('#playerPickerStatus').textContent=`${state.playerCache[key].length} players found${teamIds.length?' for selected team':''}`}catch(e){console.error(e);$('#playerPickerStatus').textContent=`Could not load players: ${e.message}`}}'''
+          text = replace_block(text, 'async function loadPlayerPicker(){', 'function renderPlayerPicker(){', picker)
+
+          team_loader = r'''async function loadPlayersForTeam(teamId,divisionId){const key=`team:${state.seasonId}:${divisionId}:${teamId}`;if(state.playerCache[key])return state.playerCache[key];const base=`?limit=500&offset=0&division=${encodeURIComponent(divisionId)}&gameType=regular_season`,[sk,go]=await Promise.allSettled([fetchJson(`${API}/players/standings/${state.seasonId}${base}&sort=-pts`),fetchJson(`${API}/goalies/standings/${state.seasonId}${base}&sort=gaa`)]),standingRows=[];if(sk.status==='fulfilled')standingRows.push(...normalizePlayerResponse(sk.value,'skater',divisionId));if(go.status==='fulfilled')standingRows.push(...normalizePlayerResponse(go.value,'goalie',divisionId));const exactRoster=await rosterFallback([String(teamId)],divisionId),explicit=standingRows.filter(p=>p.teamId&&String(p.teamId)===String(teamId)),statsById=new Map(standingRows.map(p=>[String(p.id),p])),team=state.teams.find(x=>x.id===String(teamId));let merged=dedupePlayers([...exactRoster,...explicit]).map(p=>{const s=statsById.get(String(p.id))||{};return registerPlayer({...p,...s,teamId:String(teamId),teamTitle:p.teamTitle||s.teamTitle||team?.title||'',teamLogo:p.teamLogo||s.teamLogo||team?.logo||'',teamAbbr:p.teamAbbr||s.teamAbbr||team?.abbr||'',divisionId:String(divisionId),divisionTitle:p.divisionTitle||s.divisionTitle||state.divisions.find(x=>String(x.id)===String(divisionId))?.title||''})});merged=dedupePlayers(merged);state.playerCache[key]=merged;return merged}'''
+          text = replace_block(text, 'async function loadPlayersForTeam(teamId,divisionId){', 'async function loadTeamRosterView(t){', team_loader)
+
+          venues = r'''function renderVenues(){const f=[...state.favoriteRinks].sort(),mine=myTeamId();els.venuesView.innerHTML=`<div class="heading"><div><h1>Favorite Venues</h1><p>Your saved rinks and quick schedules.</p></div><div class="count">${f.length} ${f.length===1?'venue':'venues'}</div></div><div class="chips"><button class="chip ${state.venueRange==='today'?'active':''}" data-range="today">Today</button><button class="chip ${state.venueRange==='weekend'?'active':''}" data-range="weekend">This Weekend</button><button class="chip ${state.venueRange==='next7'?'active':''}" data-range="next7">Next 7 Days</button><button class="chip ${state.venueRange==='all'?'active':''}" data-range="all">Upcoming</button><button id="venueMine" class="chip ${state.venueMyTeam?'active':''}">My Team only</button></div><div class="list" style="margin-top:11px">${f.length?f.map(r=>venueCard(r,mine)).join(''):'<div class="panel empty">Star a rink from any game card and it will appear here.</div>'}</div>`;els.venuesView.querySelectorAll('[data-range]').forEach(b=>b.onclick=()=>{state.venueRange=b.dataset.range;renderVenues()});if($('#venueMine'))$('#venueMine').onclick=()=>{state.venueMyTeam=!state.venueMyTeam;renderVenues()};els.venuesView.querySelectorAll('.unstar').forEach(b=>b.onclick=()=>toggleRink(b.dataset.rink));els.venuesView.querySelectorAll('.viewvenue').forEach(b=>b.onclick=()=>{state.schedule.rink=b.dataset.rink;state.schedule.when='all';setView('schedule')});els.venuesView.querySelectorAll('.stats').forEach(b=>b.onclick=()=>openStats(b.dataset.game));els.venuesView.querySelectorAll('.details').forEach(b=>b.onclick=()=>openGameDetails(b.dataset.game))}
+          function venueCard(r,mine){let games=state.games.filter(g=>g.location?.trim()===r&&venueWindow(g));if(state.venueMyTeam)games=games.filter(g=>hasTeam(g,mine));games.sort((a,b)=>gameDate(a)-gameDate(b));const myCount=state.games.filter(g=>g.location?.trim()===r&&hasTeam(g,mine)&&gameDate(g)>=new Date()).length;return`<section class="venuecard"><div class="venuehead"><div style="display:flex;gap:10px"><div class="venueicon">◫</div><div><h3>${esc(r)}</h3><div class="muted">Favorite venue</div></div></div><button class="star active unstar" data-rink="${escAttr(r)}">★</button></div><div class="venuemeta"><span class="pill">${games.length} in view</span>${mine?`<span class="pill">My Team: ${myCount} upcoming</span>`:''}</div><div class="venuegames">${games.slice(0,5).map(g=>{const hs=live(g)||stat(g)==='final',action=hs?'Stats':'Details';return`<div class="venuegame clickable" data-venue-${hs?'stats':'details'}="${escAttr(g.gameId)}"><div><b>${esc(fmtDate(gameDate(g)).split(',')[0])}</b><div class="time">${esc(fmtTime(gameDate(g)))}</div></div><div class="match">${esc(g.visitor?.title||'')} vs ${esc(g.home?.title||'')}</div><button class="rowbtn ${hs?'stats':'details'}" data-game="${g.gameId}">${action}</button></div>`}).join('')||'<div class="empty" style="padding:16px">No games in this window.</div>'}</div><div class="actions"><button class="soft viewvenue" data-rink="${escAttr(r)}">View full venue schedule</button></div></section>`}'''
+          text = replace_block(text, 'function renderVenues(){', 'function favPlayerMap(){', venues)
+
+          details = r'''function openGameDetails(id){const g=state.games.find(x=>String(x.gameId)===String(id));if(!g)return;const gs=`https://gamesheetstats.com/seasons/${state.seasonId}/games/${g.gameId}`,status=pretty(stat(g)||'scheduled');openDrawer('Game Details',`${g.visitor?.title||'Visitor'} vs ${g.home?.title||'Home'} · ${fmtDate(gameDate(g))}`,`<div class="statscore"><div class="team">${logo(g.visitor||{},'sm')}<b>${esc(g.visitor?.title||'Visitor')}</b></div><div class="bigscore" style="font-size:1.35rem">vs</div><div class="team">${logo(g.home||{},'sm')}<b>${esc(g.home?.title||'Home')}</b></div></div><div class="statssection" style="margin-top:12px"><h3>Game information</h3><div class="statsgrid">${sbox('Date',fmtDate(gameDate(g)))}${sbox('Time',fmtTime(gameDate(g)))}${sbox('Rink',g.location||'Not reported')}${sbox('Status',status)}${sbox('Division',g.home?.division?.title||g.visitor?.division?.title||'—')}${sbox('Game #',g.gameNumber||g.number||g.gameId||'—')}</div></div><div class="actions"><a class="rowbtn" style="text-decoration:none" href="${escAttr(gs)}" target="_blank" rel="noopener">Open on GameSheet ↗</a></div>`)}
+          '''
+          marker = 'async function openStats(id){'
+          text = text.replace(marker, details + marker, 1)
+
+          # Make venue rows themselves behave consistently: Stats for live/final, Details otherwise.
+          old_delegate = "const vg=e.target.closest?.('.venuegame[data-venue-stats]');if(vg&&!e.target.closest('button,a')){openStats(vg.dataset.venueStats);return}const go=e.target.closest?.('.game-open');if(go){e.preventDefault();window.open(go.dataset.url,'_blank','noopener');return}"
+          new_delegate = "const vg=e.target.closest?.('.venuegame[data-venue-stats]');if(vg&&!e.target.closest('button,a')){openStats(vg.dataset.venueStats);return}const vd=e.target.closest?.('.venuegame[data-venue-details]');if(vd&&!e.target.closest('button,a')){openGameDetails(vd.dataset.venueDetails);return}"
+          if old_delegate not in text:
+              raise SystemExit('venue delegate marker not found')
+          text = text.replace(old_delegate, new_delegate, 1)
+
+          Path('v3.2.1.html').write_text(text)
+          PY
+
+          python3 - <<'PY'
+          from pathlib import Path
+          t=Path('v3.2.1.html').read_text()
+          assert 'MyHockeyHub — V3.2.1' in t
+          assert "!p.teamId||String(p.teamId)===String(teamId)" not in t
+          assert "Game</button>" not in t
+          start=t.rfind('<script>')+8
+          end=t.rfind('</script>')
+          Path('/tmp/v3.2.1.js').write_text(t[start:end])
+          PY
+          node --check /tmp/v3.2.1.js
+      - name: Commit V3.2.1
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add v3.2.1.html
+          git commit -m "fix: correct roster membership and venue game actions"
+          git push origin main
