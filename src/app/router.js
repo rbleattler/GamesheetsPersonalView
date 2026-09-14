@@ -49,9 +49,9 @@
   window.addEventListener('popstate', () => applyRoute());
   applyRoute({ replaceMissing: true });
 
-  // Broadcaster metadata is not present in the season-level unified-games feed.
-  // Hydrate it lazily from /api/games/game/:id/detail and keep any discovered
-  // LiveBarn surface IDs as venue-level links in local browser storage.
+  // The season-level unified-games feed does not reliably contain broadcaster
+  // metadata. Hydrate lazily from /api/games/game/:id/detail and keep any
+  // discovered LiveBarn surface IDs as venue-level links in browser storage.
   const foundation = window.MyHockeyHubFoundation;
   const drawerBody = document.getElementById('drawerBody');
   const venuesView = document.getElementById('venuesView');
@@ -106,11 +106,31 @@
     return detail?.game || detail?.data?.game || null;
   }
 
-  function liveBarnVenue(detail) {
+  function liveBarnSurfaceId(livebarn) {
+    const explicit = String(livebarn?.surfaceId || '').trim();
+    if (explicit) return explicit;
+    for (const value of [
+      livebarn?.broadcastUrl,
+      livebarn?.vodUrl,
+      livebarn?.highlightsUrl,
+      livebarn?.broadcasterUrl
+    ]) {
+      if (!value) continue;
+      try {
+        const url = new URL(value);
+        if (!url.hostname.toLowerCase().includes('livebarn')) continue;
+        const match = url.pathname.match(/\/video\/([^/?#]+)/i);
+        if (match?.[1]) return decodeURIComponent(match[1]);
+      } catch {}
+    }
+    return '';
+  }
+
+  function liveBarnVenue(detail, fallbackLocation = '') {
     const game = detailGame(detail);
     const livebarn = game?.broadcasters?.livebarn;
-    const surfaceId = String(livebarn?.surfaceId || '').trim();
-    const location = String(game?.location || '').trim();
+    const surfaceId = liveBarnSurfaceId(livebarn);
+    const location = String(game?.location || fallbackLocation || '').trim();
     if (!surfaceId || !location) return null;
     return {
       location,
@@ -120,10 +140,13 @@
     };
   }
 
-  function rememberVenue(detail) {
-    const venue = liveBarnVenue(detail);
+  function rememberVenue(detail, fallbackLocation = '') {
+    const venue = liveBarnVenue(detail, fallbackLocation);
     if (!venue) return null;
     venueMap[venueKey(venue.location)] = venue;
+    // Also retain the requested/card spelling when it differs only by the
+    // source's formatting, so the Favorite Venues card resolves immediately.
+    if (fallbackLocation) venueMap[venueKey(fallbackLocation)] = venue;
     saveVenueMap();
     return venue;
   }
@@ -135,13 +158,17 @@
       const url = new URL(broadcast.url);
       if (url.hostname.toLowerCase().includes('livebarn')) {
         const parts = url.pathname.split('/').filter(Boolean);
-        // /en/video/<surface> is a useful venue page, but it is not a game-specific watch URL.
+        // /en/video/<surface> is a useful venue page, but not a game-specific URL.
         if (parts.length <= 3) return null;
       }
     } catch {
       return null;
     }
-    return broadcast;
+    const gameStatus = String(detail?.status || detailGame(detail)?.status || '').toLowerCase();
+    return {
+      ...broadcast,
+      label: gameStatus === 'final' ? 'Replay' : gameStatus === 'live' ? 'Live' : (broadcast.label || 'Watch')
+    };
   }
 
   function getDetail(gameId) {
@@ -163,6 +190,7 @@
     link.href = broadcast.url;
     link.target = '_blank';
     link.rel = 'noopener';
+    link.style.textDecoration = 'none';
     link.textContent = `▶ ${broadcast.label || 'Watch'}${broadcast.provider ? ` · ${broadcast.provider}` : ''} ↗`;
     return link;
   }
@@ -248,15 +276,25 @@
   async function discoverVenue(card, location) {
     const key = venueKey(location);
     if (!key || venueMap[key] || venueRequests.has(key)) return;
-    const gameId = card.querySelector('[data-game]')?.dataset.game;
-    if (!gameId) return;
-    const request = getDetail(gameId)
-      .then(detail => {
-        rememberVenue(detail);
-        renderVenueLinks();
-      })
-      .catch(error => console.warn('Venue broadcaster detail unavailable', location, error))
-      .finally(() => venueRequests.delete(key));
+    const gameIds = [...new Set(
+      [...card.querySelectorAll('[data-game]')]
+        .map(node => String(node.dataset.game || ''))
+        .filter(Boolean)
+    )].slice(0,5);
+    if (!gameIds.length) return;
+
+    const request = (async()=>{
+      for (const gameId of gameIds) {
+        try {
+          const detail = await getDetail(gameId);
+          const venue = rememberVenue(detail, location);
+          if (venue) return venue;
+        } catch (error) {
+          console.warn('Venue broadcaster candidate unavailable', location, gameId, error);
+        }
+      }
+      return null;
+    })().then(() => renderVenueLinks()).finally(() => venueRequests.delete(key));
     venueRequests.set(key, request);
   }
 
