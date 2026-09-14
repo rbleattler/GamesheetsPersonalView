@@ -1,7 +1,7 @@
 {
   "name": "myhockeyhub",
   "private": true,
-  "version": "4.0.0-beta.0",
+  "version": "4.0.0",
   "type": "module",
   "scripts": {
     "check": "node --check scripts/build.mjs && node --check scripts/finalize-static.mjs && node --check scripts/verify-build.mjs && node --check scripts/schema-probe.mjs && node --check src/app/fetch-guard.js && node --check src/app/router.js && node --check src/app/venue-links.js && node --check src/app/card-actions.js && node --check src/app/game-normalization.js && node --check src/app/foundation.js && node --check src/app/diagnostics.js && node --check tests/foundation.test.mjs && node --check tests/game-normalization.test.mjs",
@@ -11,6 +11,7 @@
     "probe:schema": "node scripts/schema-probe.mjs"
   },
   "devDependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.1",
     "esbuild": "^0.25.0"
   }
 }
