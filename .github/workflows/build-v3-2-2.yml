@@ -13,7 +13,11 @@ jobs:
         with:
           ref: main
       - name: Build preview
-        run: python3 tools/build_v3_2_2.py
+        shell: bash
+        run: |
+          sed -i "s/pat.subn(player, s, count=1)/pat.subn(lambda m: player, s, count=1)/" tools/build_v3_2_2.py
+          sed -i "s/pat.subn(render_stats, s, count=1)/pat.subn(lambda m: render_stats, s, count=1)/" tools/build_v3_2_2.py
+          python3 tools/build_v3_2_2.py
       - name: Validate inline JavaScript
         shell: bash
         run: |
