@@ -1,0 +1,9 @@
+(()=>{"use strict";if(!(new URL(location.href).searchParams.get("debug")==="1"||sessionStorage.getItem("myhockeyhub.debug")==="1"))return;sessionStorage.setItem("myhockeyhub.debug","1");const t=document.createElement("aside");t.className="debug-panel",t.innerHTML=`
+    <div class="debug-head"><b>Preview diagnostics</b><button type="button" data-debug-close>\xD7</button></div>
+    <div class="debug-grid" data-debug-grid></div>
+    <div class="debug-actions">
+      <button type="button" data-debug-refresh>Refresh live now</button>
+      <button type="button" data-debug-copy>Copy snapshot</button>
+      <button type="button" data-debug-disable>Disable</button>
+    </div>
+  `,document.body.appendChild(t);const s=t.querySelector("[data-debug-grid]");let n=null;const r=a=>a==null?"\u2014":String(a),o=()=>{const a=window.MyHockeyHubDebug;if(!a?.snapshot){s.innerHTML="<div>Waiting for app state\u2026</div>";return}const e=a.snapshot();n=e;const d=[["View",e.view],["Season",e.seasonId],["Games",e.gameCount],["Visible live",e.liveCount],["Polling",e.polling?"yes":"no"],["Last live refresh",e.lastLive||"\u2014"],["Refresh error",e.lastError?"yes":"no"],["Broadcast links",e.broadcastActionable],["Broadcast suppressed",e.broadcastSuppressed]];s.innerHTML=d.map(([c,u])=>`<div><span>${c}</span><b>${r(u)}</b></div>`).join("")};t.querySelector("[data-debug-refresh]").onclick=async()=>{await window.MyHockeyHubDebug?.refreshLive?.(),o()},t.querySelector("[data-debug-copy]").onclick=async()=>{if(o(),!!n)try{await navigator.clipboard.writeText(JSON.stringify(n,null,2))}catch{}},t.querySelector("[data-debug-disable]").onclick=()=>{sessionStorage.removeItem("myhockeyhub.debug");const a=new URL(location.href);a.searchParams.delete("debug"),location.replace(a)},t.querySelector("[data-debug-close]").onclick=()=>t.remove(),o();const i=setInterval(o,2e3);window.addEventListener("pagehide",()=>clearInterval(i),{once:!0})})();
