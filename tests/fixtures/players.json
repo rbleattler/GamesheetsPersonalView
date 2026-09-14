@@ -1,0 +1,37 @@
+{
+  "status": "success",
+  "data": {
+    "rows": [
+      {
+        "player": {
+          "id": 101,
+          "firstName": "Alex",
+          "lastName": "Example",
+          "number": "17",
+          "position": "Forward",
+          "photoURL": "https://images.example.invalid/player.png"
+        },
+        "team": {
+          "id": 501,
+          "title": "Fixture Falcons",
+          "abbr": "FF",
+          "logo": "https://images.example.invalid/team.png"
+        },
+        "division": {"id": 12, "title": "12U A"},
+        "stats": {"goals": 4, "assists": 6, "points": 10, "pim": 2, "shots": 19}
+      },
+      {
+        "goalie": {
+          "id": 202,
+          "name": "Goalie Example",
+          "jersey": "30",
+          "position": "Goalie",
+          "teamId": 502,
+          "stats": {"gaa": 1.75, "savePct": 0.925, "wins": 7, "shutouts": 2}
+        },
+        "team": {"id": 502, "name": "Fixture Bears", "abbr": "FB"},
+        "division": {"id": 12, "title": "12U A"}
+      }
+    ]
+  }
+}
