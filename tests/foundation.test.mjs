@@ -68,6 +68,35 @@ test('API client validates HTTP and GameSheet status without live network access
   await assert.rejects(()=>foundation.api.fetchJson('https://example.invalid',{fetchImpl:badStatus}),/fixture failure/);
 });
 
+test('game detail accepts game-state status and exposes LiveBarn metadata',async()=>{
+  const detailPayload={
+    status:'final',
+    game:{
+      id:2919322,
+      location:'PNY SPORTS ARENA',
+      broadcaster:'',
+      broadcasters:{
+        livebarn:{
+          broadcastUrl:'https://livebarn.com/en/video/874/2026-09-13/16:45',
+          vodUrl:'https://livebarn.com/en/video/874/2026-09-13/16:45',
+          highlightsUrl:'',
+          broadcasterUrl:'https://livebarn.com/',
+          surfaceId:'874'
+        }
+      }
+    }
+  };
+  const fetchImpl=async()=>({ok:true,status:200,statusText:'OK',json:async()=>detailPayload});
+  const client=foundation.api.createClient({fetchImpl});
+  const detail=await client.gameDetail(2919322);
+  assert.equal(detail.status,'final');
+  assert.equal(detail.game.broadcasters.livebarn.surfaceId,'874');
+  const broadcast=foundation.normalize.broadcaster(detail);
+  assert.equal(broadcast.available,true);
+  assert.equal(broadcast.provider,'LiveBarn');
+  assert.equal(broadcast.url,'https://livebarn.com/en/video/874/2026-09-13/16:45');
+});
+
 test('endpoint client owns public GameSheet URL construction',async()=>{
   const calls=[];
   const fetchImpl=async url=>{calls.push(String(url));return{ok:true,status:200,statusText:'OK',json:async()=>({status:'success',data:[]})}};
@@ -75,6 +104,7 @@ test('endpoint client owns public GameSheet URL construction',async()=>{
   await client.seasonInfo('15 111');
   await client.seasonDivisions('15111');
   await client.unifiedGames('15111');
+  await client.gameDetail('game/id');
   await client.skaterStandings('15111','?limit=20&sort=-pts');
   await client.goalieStandings('15111','limit=10&sort=gaa');
   await client.firestoreGame('15111','game/id');
@@ -82,6 +112,7 @@ test('endpoint client owns public GameSheet URL construction',async()=>{
     'https://gamesheetstats.com/api/season-info/15%20111',
     'https://gamesheetstats.com/api/season-divisions/15111',
     'https://gamesheetstats.com/api/unified-games/15111',
+    'https://gamesheetstats.com/api/games/game/game%2Fid/detail',
     'https://gamesheetstats.com/api/players/standings/15111?limit=20&sort=-pts',
     'https://gamesheetstats.com/api/goalies/standings/15111?limit=10&sort=gaa',
     'https://firestore.googleapis.com/v1/projects/gamesheet-production/databases/(default)/documents/seasons/15111/games/game%2Fid'
