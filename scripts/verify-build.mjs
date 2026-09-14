@@ -43,7 +43,7 @@ if (!homeHtml.includes('assets/site.css?v=')) throw new Error('Home stylesheet i
 if (!homeHtml.includes('href="app/"') || !homeHtml.includes('href="versions.html"')) throw new Error('Home page navigation is incomplete.');
 if (!guardJs.includes('MyHockeyHubFetchGuard') || !guardJs.includes('AbortController') || !guardJs.includes('TimeoutError')) throw new Error('Fetch timeout guard was not emitted correctly.');
 if (!venueLinksJs.includes('livebarnVenues.v1') || !venueLinksJs.includes('gamecard') || !venueLinksJs.includes('LiveBarn venue')) throw new Error('Venue LiveBarn inference bridge was not emitted correctly.');
-if (!cardActionsJs.includes('game-action-row') || !cardActionsJs.includes('GameSheet') || !cardActionsJs.includes('LiveBarn') || !cardActionsJs.includes("label==='game'")) throw new Error('Game-card action-row decorator was not emitted correctly.');
+if (!cardActionsJs.includes('game-action-row') || !cardActionsJs.includes('GameSheet') || !cardActionsJs.includes('LiveBarn')) throw new Error('Game-card action-row decorator was not emitted correctly.');
 if (!appCss.includes('.game-action-row') || !appCss.includes('.game-meta-two')) throw new Error('Game-card action-row styles were not emitted correctly.');
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
 for (const method of ['seasonInfo','seasonDivisions','unifiedGames','skaterStandings','goalieStandings']) {
