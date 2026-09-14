@@ -154,11 +154,3 @@ Older versions remain available from the project’s version-history page.
 No.
 
 MyHockeyHub is an independent project that presents publicly available hockey data in a different interface. It is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.
-
-## How do I find or add a league / season?
-
-Open **Settings → Find / add league**. Start typing the league or season name and MyHockeyHub filters the saved public-season catalog immediately. You can also search by numeric GameSheet season ID.
-
-For common abbreviations, MyHockeyHub may infer an acronym from the full league name—for example, **DVHL** can find **Delaware Valley Hockey League**. These inferred matches are deliberately ranked below exact and ordinary text matches to reduce unrelated suggestions.
-
-The catalog is refreshed manually, so a brand-new season may not be present yet. In that case, paste the GameSheet season URL or season ID into the manual field at the bottom of the finder.
