@@ -1,0 +1,40 @@
+name: Build V3.5
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/build-v3-5.yml
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Build V3.5
+        run: python3 tools/build_v3_5.py
+      - name: Validate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,re
+          from pathlib import Path
+          rows=json.loads(Path('data/seasons.json').read_text(encoding='utf-8'))
+          assert len(rows)==909
+          assert any(int(x.get('SeasonID',-1))==15111 for x in rows)
+          s=Path('v3.5.html').read_text(encoding='utf-8')
+          assert 'searchSeasonCatalog' in s
+          assert 'Possible acronym' in s
+          assert 'Find / add league' in s
+          Path('/tmp/app.js').write_text('\n'.join(re.findall(r'<script>(.*?)</script>',s,re.S)),encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+      - name: Commit V3.5
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/seasons.json v3.5.html gamesheets_plus.html index.html README.md FAQ.md
+          git commit -m 'feat: add searchable season catalog'
+          git push
