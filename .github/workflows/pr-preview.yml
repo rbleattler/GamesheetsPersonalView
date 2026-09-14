@@ -32,9 +32,10 @@ jobs:
       - name: Install build dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Validate and build
+      - name: Validate, test, and build
         run: |
           npm run check
+          npm test
           npm run build
           npm run verify
 
