@@ -1,0 +1,92 @@
+name: Build V3.2.2 preview
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Build V3.2.2
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          src = Path('v3.2.1.html').read_text(encoding='utf-8')
+          s = src.replace('MyHockeyHub — V3.2.1', 'MyHockeyHub — V3.2.2').replace('>V3.2.1<', '>V3.2.2<')
+          s = s.replace('<meta name="color-scheme" content="dark">', '<meta name="color-scheme" content="light dark">\n<meta name="theme-color" content="#07111c">')
+
+          css = r'''
+/* V3.2.2: mobile alignment, appearance themes, and expandable player game activity */
+html,body{width:100%;max-width:100%;overflow-x:hidden}.drawer{max-width:100vw;overflow-x:hidden}.gamesheet-linkbar{display:flex;justify-content:flex-end;margin:9px 2px 2px}.player-game-card{border:1px solid var(--line);border-radius:14px;background:#102033;overflow:hidden}.player-game-toggle{width:100%;border:0;background:transparent;color:var(--text);display:grid;grid-template-columns:92px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:11px;text-align:left}.player-game-toggle .opp{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.player-game-toggle .summary{white-space:nowrap;border:1px solid #35506d;border-radius:10px;padding:6px 9px;color:#dceafb}.player-game-toggle .chev{color:var(--muted);font-size:1.15rem;transition:transform .15s ease}.player-game-toggle[aria-expanded="true"] .chev{transform:rotate(90deg)}.player-game-events{border-top:1px solid var(--line);padding:9px 11px 11px;background:rgba(5,13,22,.22)}.player-event{display:grid;grid-template-columns:46px 54px 64px minmax(0,1fr);gap:7px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(120,150,180,.13);font-size:.82rem}.player-event:last-child{border-bottom:0}.event-kind{font-weight:850}.event-kind.goal{color:var(--green)}.event-kind.assist{color:var(--blue)}.player-game-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.settings-grid{display:grid;gap:14px}.settings-section{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(15,29,44,.55)}.settings-section h3{margin:0 0 10px}.danger{border-color:rgba(255,65,65,.55)!important;color:#ff8d8d!important}.settings-note{margin-top:10px}.theme-help{font-size:.76rem;color:var(--muted);margin-top:6px}
+html[data-theme="light"]{color-scheme:light;--bg:#f4f7fb;--panel:#ffffff;--panel2:#eef4fa;--line:#c7d5e3;--text:#0d1d2d;--muted:#60758b;--blue:#0969c7;--green:#16894e;--red:#d92d2d;--amber:#9b6500;--shadow:0 14px 38px rgba(31,55,78,.13)}
+html[data-theme="light"] body{background:radial-gradient(circle at 12% -8%,rgba(51,124,211,.09),transparent 31rem),linear-gradient(180deg,#f7fafe,#eef4f9);color:var(--text)}
+html[data-theme="light"] .nav{background:rgba(247,250,253,.96);border-bottom-color:#d7e2ec}
+html[data-theme="light"] .panel,html[data-theme="light"] .gamecard,html[data-theme="light"] .venuecard,html[data-theme="light"] .playercard,html[data-theme="light"] .miniresult,html[data-theme="light"] .drawer,html[data-theme="light"] .statssection,html[data-theme="light"] .statscore,html[data-theme="light"] .filters,html[data-theme="light"] .pickrow,html[data-theme="light"] .venuegame,html[data-theme="light"] .event,html[data-theme="light"] .sbox,html[data-theme="light"] .player-game-card,html[data-theme="light"] .settings-section,html[data-theme="light"] .player-detail-hero{background:#fff;color:var(--text);box-shadow:var(--shadow)}
+html[data-theme="light"] select,html[data-theme="light"] input[type=search],html[data-theme="light"] input[type=date],html[data-theme="light"] .soft,html[data-theme="light"] .iconbtn,html[data-theme="light"] .rowbtn,html[data-theme="light"] .chip{background:#fff;color:var(--text);border-color:#b9cad9}
+html[data-theme="light"] .primary{color:#fff}html[data-theme="light"] .logo,html[data-theme="light"] .venueicon,html[data-theme="light"] .avatar{background:#edf4fa}html[data-theme="light"] .player-game-events{background:#f7fafc}html[data-theme="light"] .player-game-toggle .summary{color:#28435c;border-color:#b9cad9}html[data-theme="light"] .badge.scheduled{background:#e6f2fc;color:#24577f}html[data-theme="light"] .drawerhead{background:linear-gradient(180deg,#fff 80%,transparent)}
+@media(max-width:560px){.app{width:100%;margin:0 auto;padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}.drawer{width:100vw;max-width:100vw;border-left:0;padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}.player-game-toggle{grid-template-columns:82px minmax(0,1fr) auto;gap:8px}.player-game-toggle .chev{grid-column:3;grid-row:1}.player-game-toggle .summary{grid-column:3;grid-row:2}.player-event{grid-template-columns:36px 48px 54px minmax(0,1fr)}}
+'''
+          s = s.replace('\n[hidden]{display:none!important}', '\n'+css+'\n[hidden]{display:none!important}', 1)
+
+          old = "state.playerMode='favorites';state.playerRegistry={};state.playerDetailCache={};"
+          new = "state.playerMode='favorites';state.playerRegistry={};state.playerDetailCache={};state.theme=localStorage.getItem('gsv3.theme')||'system';applyTheme(state.theme);"
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old_save = "function savePrefs(){localStorage.setItem('gsv3.seasonId',state.seasonId);localStorage.setItem('gsv3.view',state.view);localStorage.setItem('gsv3.myTeamBySeason',JSON.stringify(state.myTeamBySeason));localStorage.setItem('gsv3.favoriteRinks',JSON.stringify([...state.favoriteRinks]));localStorage.setItem('gsv3.favoritePlayersBySeason',JSON.stringify(state.favoritePlayersBySeason))}"
+          new_save = """function savePrefs(){localStorage.setItem('gsv3.seasonId',state.seasonId);localStorage.setItem('gsv3.view',state.view);localStorage.setItem('gsv3.myTeamBySeason',JSON.stringify(state.myTeamBySeason));localStorage.setItem('gsv3.favoriteRinks',JSON.stringify([...state.favoriteRinks]));localStorage.setItem('gsv3.favoritePlayersBySeason',JSON.stringify(state.favoritePlayersBySeason));localStorage.setItem('gsv3.theme',state.theme||'system')}
+function applyTheme(pref){const p=['system','light','dark'].includes(pref)?pref:'system';state.theme=p;const dark=p==='dark'||(p==='system'&&window.matchMedia?.('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=dark?'dark':'light';document.documentElement.dataset.themePref=p;const meta=document.querySelector('meta[name=\"theme-color\"]');if(meta)meta.content=dark?'#07111c':'#f4f7fb';localStorage.setItem('gsv3.theme',p)}
+function clearAppData(){if(!window.confirm('Clear MyHockeyHub preferences, saved teams, venues, players, seasons, and appearance settings on this device?'))return;for(const k of Object.keys(localStorage)){if(/^gsv\\d*\\./.test(k)||/^dvhl\\./.test(k)||/^myhockeyhub\\./.test(k))localStorage.removeItem(k)}window.location.reload()}"""
+          assert old_save in s
+          s = s.replace(old_save, new_save, 1)
+
+          pat = re.compile(r"function openSettings\(\)\{.*?\}\nfunction bindTeamDelegates", re.S)
+          settings = r'''function openSettings(){const opts=catalog().map(x=>`<option value="${escAttr(x.id)}" ${String(x.id)===String(state.seasonId)?'selected':''}>${esc(x.title||`Season ${x.id}`)}</option>`).join('');openDrawer('Settings','League, appearance, and app data',`<div class="settings-grid"><section class="settings-section"><h3>League / season</h3><label class="label">Current season</label><select id="settingsSeason">${opts}</select><div class="actions"><button id="settingsAddSeason" class="soft">＋ Add season</button></div></section><section class="settings-section"><h3>Appearance</h3><label class="label">Theme</label><select id="settingsTheme"><option value="system" ${state.theme==='system'?'selected':''}>Follow device</option><option value="dark" ${state.theme==='dark'?'selected':''}>Dark</option><option value="light" ${state.theme==='light'?'selected':''}>Light</option></select><div class="theme-help">Follow device updates automatically when your system appearance changes.</div></section><section class="settings-section"><h3>App data</h3><button id="settingsClearData" class="soft danger">Clear all MyHockeyHub data</button><div class="theme-help">Removes My Team, favorite venues, My Players, added seasons, and appearance preferences stored on this device.</div></section><div class="settings-note">MyHockeyHub is an independent personal viewer using public GameSheet data. It is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.</div></div>`);$('#settingsSeason').onchange=async()=>{state.seasonId=$('#settingsSeason').value;savePrefs();fillSeason();closeDrawer();await loadSeason()};$('#settingsAddSeason').onclick=async()=>{closeDrawer();await addSeason()};$('#settingsTheme').onchange=()=>{applyTheme($('#settingsTheme').value);savePrefs()};$('#settingsClearData').onclick=clearAppData}
+function bindTeamDelegates'''
+          s, n = pat.subn(settings, s, count=1)
+          assert n == 1, n
+
+          pat = re.compile(r"async function openPlayerDetail\(id\)\{.*?\}\nasync function recentPlayerGames\(p\)\{.*?\}\nfunction validTeamColor", re.S)
+          player = r'''function playerActivityEventsHtml(events){if(!events?.length)return'<div class="muted">No goal or assist events were recorded for this player in this game.</div>';return`<div>${events.map(e=>`<div class="player-event"><span>${esc(e.period||'')}</span><span>${esc(e.time||'')}</span><span class="event-kind ${e.kind==='Goal'?'goal':'assist'}">${esc(e.kind)}</span><span>${esc(e.detail||'')}</span></div>`).join('')}</div>`}
+function playerGameActivityCard(r){const id=`player-game-${r.gameId}`;return`<section class="player-game-card"><button type="button" class="player-game-toggle" data-target="${escAttr(id)}" aria-expanded="false"><div><b>${esc(fmtDate(r.date).replace(', ', ' '))}</b><div class="time">${esc(fmtTime(r.date))}</div></div><div class="opp">vs ${esc(r.opponent)} · ${esc(r.location||'')}</div><span class="summary">${r.kind==='goalie'?`${esc(r.sv??'—')} SV`:`${esc(r.g)}G ${esc(r.a)}A`}</span><span class="chev">›</span></button><div id="${escAttr(id)}" class="player-game-events" hidden>${playerActivityEventsHtml(r.events)}<div class="player-game-actions"><button class="rowbtn player-full-game" data-game="${escAttr(r.gameId)}">Full game stats</button><a class="link" target="_blank" rel="noopener" href="https://gamesheetstats.com/seasons/${state.seasonId}/games/${escAttr(r.gameId)}">GameSheet ↗</a></div></div></section>`}
+async function openPlayerDetail(id){id=String(id||'');const p=registerPlayer(state.playerRegistry[id]||favPlayerMap()[id]);if(!p)return;openDrawer(p.name,p.teamTitle||'Player details',playerDetailSummary(p));try{const rows=await recentPlayerGames(p),root=$('#playerRecentGames');if(!root)return;root.innerHTML=rows.length?rows.map(playerGameActivityCard).join(''):'<div class="muted">No recent player-level game data was available.</div>';root.querySelectorAll('.player-game-toggle').forEach(b=>b.onclick=()=>{const panel=$('#'+b.dataset.target),open=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!open));if(panel)panel.hidden=open});root.querySelectorAll('.player-full-game').forEach(b=>b.onclick=()=>openStats(b.dataset.game))}catch(e){const root=$('#playerRecentGames');if(root)root.innerHTML=`<div class="muted">Recent game detail unavailable: ${esc(e.message)}</div>`}}
+function playerEventsForGame(d,playerId){const id=String(playerId||''),out=[];for(const e of Object.values(d?.events||{})){if(!String(e?.type||'').includes('Goal'))continue;const c=statClock(e?.time?.clock),scorer=e?.for?.scorer||{},raw=e?.for?.assist,assists=Array.isArray(raw)?raw:(raw?[raw]:[]);if(String(scorer?.id||'')===id)out.push({kind:'Goal',period:c.period,time:c.time,detail:'Goal'});for(const a of assists)if(String(a?.id||'')===id)out.push({kind:'Assist',period:c.period,time:c.time,detail:`Assist on ${pname(scorer)} goal`})}const periodNum=x=>Number(String(x.period||'').replace(/\D/g,''))||0,clockSec=x=>{const p=String(x.time||'').split(':').map(Number);return p.length===2?(p[0]*60+p[1]):0};return out.sort((a,b)=>periodNum(a)-periodNum(b)||clockSec(b)-clockSec(a))}
+async function recentPlayerGames(p){const teamId=String(p.teamId||''),games=state.games.filter(g=>teamId&&hasTeam(g,teamId)&&stat(g)==='final').sort((a,b)=>gameDate(b)-gameDate(a)).slice(0,6),rows=[];for(const g of games){try{const u=`https://firestore.googleapis.com/v1/projects/gamesheet-production/databases/(default)/documents/seasons/${state.seasonId}/games/${g.gameId}`,d=firestoreData(await fetchJson(u)),side=String(g.home?.id)===teamId?'home':'visitor',opp=side==='home'?g.visitor:g.home,players=d?.data?.[side]?.lineup?.players||[],raw=players.find(x=>String(x.id)===String(p.id));if(!raw)continue;const n=normStatPlayer(raw),goalie=String(n.position||p.position||'').toLowerCase().includes('goalie');rows.push({gameId:g.gameId,date:gameDate(g),opponent:opp?.title||'Opponent',location:g.location||'',kind:goalie?'goalie':'skater',g:n.g??0,a:n.a??0,pts:n.pts??0,pim:n.pim??0,sv:n.saves??n.sv??n.stats?.sv??'—',events:playerEventsForGame(d,p.id)})}catch(e){console.warn('Player game detail unavailable',g.gameId,e)}}return rows}
+function validTeamColor'''
+          s, n = pat.subn(player, s, count=1)
+          assert n == 1, n
+
+          pat = re.compile(r"function renderStats\(g,b\)\{.*?\}\nfunction sbox", re.S)
+          render_stats = r'''function renderStats(g,b){state._statsBox=b;state._statsGame=g;const away=b.visitor||g.visitor,home=b.home||g.home;for(const side of ['visitor','home'])for(const p of (b?.[side]?.roster?.players||[]))registerPlayer(statsPlayerRecord(p,b[side]));els.drawerBody.innerHTML=`<div class="statscore"><div class="team">${logo(away,'sm')}<b>${esc(away.title||'Away')}</b></div><div class="bigscore">${esc(away.finalScore??g.visitor?.goals??'—')} – ${esc(home.finalScore??g.home?.goals??'—')}</div><div class="team">${logo(home,'sm')}<b>${esc(home.title||'Home')}</b></div></div><div class="gamesheet-linkbar"><a class="link" target="_blank" rel="noopener" href="https://gamesheetstats.com/seasons/${state.seasonId}/games/${g.gameId}">Open on GameSheet ↗</a></div><div class="tabs"><button class="tab active" data-tab="summary">Summary</button><button class="tab" data-tab="scoring">Scoring</button><button class="tab" data-tab="penalties">Penalties</button><button class="tab" data-tab="players">Players</button></div><div id="summaryPane" class="pane active"><div class="statssection"><h3>Team stats</h3><div class="statsgrid">${sbox('Away score',away.finalScore??g.visitor?.goals)}${sbox('Home score',home.finalScore??g.home?.goals)}${sbox('Away SOG',away.sog??'—')}${sbox('Home SOG',home.sog??'—')}</div></div><div class="statssection"><h3>Scoring summary</h3>${eventList(goals(b),'goal')}</div></div><div id="scoringPane" class="pane"><div class="statssection"><h3>Scoring</h3>${eventList(goals(b),'goal')}</div></div><div id="penaltiesPane" class="pane"><div class="statssection"><h3>Penalties</h3>${eventList(penalties(b),'penalty')}</div></div><div id="playersPane" class="pane"><div class="statssection"><h3>Players</h3>${playerTable(b)}</div></div>`;els.drawerBody.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{els.drawerBody.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));els.drawerBody.querySelectorAll('.pane').forEach(x=>x.classList.remove('active'));$(btn.dataset.tab+'Pane').classList.add('active')})}
+function sbox'''
+          s, n = pat.subn(render_stats, s, count=1)
+          assert n == 1, n
+
+          old_end = "document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollLive()});fillSeason();loadSeason();"
+          new_end = "document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollLive()});const themeMedia=window.matchMedia?.('(prefers-color-scheme: dark)');themeMedia?.addEventListener?.('change',()=>{if(state.theme==='system')applyTheme('system')});fillSeason();loadSeason();"
+          assert old_end in s
+          s = s.replace(old_end, new_end, 1)
+
+          Path('v3.2.2.html').write_text(s, encoding='utf-8')
+          PY
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          s=Path('v3.2.2.html').read_text()
+          js=re.findall(r'<script>(.*?)</script>',s,re.S)
+          Path('/tmp/app.js').write_text('\n'.join(js))
+          PY
+          node --check /tmp/app.js
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add v3.2.2.html
+          git commit -m 'feat: add V3.2.2 player activity and appearance controls'
+          git push
