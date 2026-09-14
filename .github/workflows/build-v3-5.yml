@@ -1,0 +1,49 @@
+name: Build V3.5
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/build-v3-5.yml
+      - tools/build_v3_5_uploaded.py
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Build V3.5
+        run: python3 tools/build_v3_5_uploaded.py
+      - name: Validate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,re
+          from pathlib import Path
+          rows=json.loads(Path('data/seasons.json').read_text(encoding='utf-8'))
+          assert len(rows)>=900
+          assert any(int(x.get('SeasonID',-1))==15111 and x.get('LeagueName')=='Delaware Valley Hockey League' for x in rows)
+          s=Path('v3.5.html').read_text(encoding='utf-8')
+          assert 'searchSeasonCatalog' in s
+          assert 'Possible acronym' in s
+          assert 'Find league / season' in s
+          assert "inferredSeasonAcronym" in s
+          Path('/tmp/app.js').write_text('\n'.join(re.findall(r'<script>(.*?)</script>',s,re.S)),encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+          node - <<'JS'
+          function norm(v){return String(v??'').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim()}
+          const stop=new Set(['the','of','and','for','at','in','on','a','an','to','by','with','de','la','le','du','des']);
+          function inferred(v){let name=String(v||'').replace(/[’']s\b/gi,'').replace(/\b(?:19|20)\d{2}(?:\s*[-/]\s*(?:19|20)?\d{2})?\b/g,' '),words=(name.match(/[A-Za-z]+/g)||[]).map(x=>x.toLowerCase()).filter(x=>x.length>1&&!stop.has(x));if(words.length<3||words.length>8)return'';const a=words.map(x=>x[0]).join('').toUpperCase();return a.length>=3&&a.length<=8?a:''}
+          if(inferred('Delaware Valley Hockey League')!=='DVHL') process.exit(1)
+          if(inferred('Pittsburgh Amateur Hockey League')!=='PAHL') process.exit(1)
+          JS
+      - name: Commit V3.5
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add v3.5.html gamesheets_plus.html index.html README.md FAQ.md data/README.md
+          git commit -m 'feat: add searchable season catalog'
+          git push
