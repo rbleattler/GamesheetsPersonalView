@@ -193,7 +193,7 @@ function normalizeFirestoreBox(g,d){
         }
     }
 
-    const normalizeTeam=(side,data,base)=>({...base,title:data?.details?.title||base?.title||side,logo:data?.details?.logo||base?.logo||'',finalScore:score?.[side]??base?.goals,sog:shots?.[side]??base?.shots,roster:{players:(data?.lineup?.players||[]).map(normalizeStatPlayer)}});
+    const normalizeTeam=(side,data,base)=>({...base,title:data?.details?.title||base?.title||side,logo:base?.logo||data?.details?.logo||'',finalScore:score?.[side]??base?.goals,sog:shots?.[side]??base?.shots,roster:{players:(data?.lineup?.players||[]).map(normalizeStatPlayer)}});
     return{visitor:normalizeTeam('visitor',visitorData,g.visitor||{}),home:normalizeTeam('home',homeData,g.home||{}),tables:{goalsByPeriod:groupEvents(goalEvents),penaltiesByPeriod:groupEvents(penaltyEvents)}};
 }
 function normalizeUnifiedBox(g){
