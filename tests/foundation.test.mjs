@@ -6,6 +6,7 @@ await import('../src/app/foundation.js');
 const foundation=globalThis.MyHockeyHubFoundation;
 const fixture=JSON.parse(await readFile(new URL('./fixtures/games.json',import.meta.url),'utf8'));
 const replayFixture=JSON.parse(await readFile(new URL('./fixtures/live-replay.json',import.meta.url),'utf8'));
+const playerFixture=JSON.parse(await readFile(new URL('./fixtures/players.json',import.meta.url),'utf8'));
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
 test('unwraps GameSheet data and normalizes games',()=>{
@@ -26,6 +27,21 @@ test('missing broadcaster metadata is harmless',()=>{
   const game=foundation.normalize.games(fixture)[2];
   assert.equal(game._broadcast.available,false);
   assert.deepEqual(game._broadcast.candidates,[]);
+});
+
+test('normalizes nested player standings without app-state dependencies',()=>{
+  const skaters=foundation.normalize.standingPlayers(playerFixture,{kind:'skater',divisionId:'12'});
+  assert.equal(skaters.length,2);
+  assert.deepEqual(skaters[0],{
+    id:'101',name:'Alex Example',kind:'skater',number:'17',position:'Forward',teamId:'501',teamTitle:'Fixture Falcons',teamLogo:'https://images.example.invalid/team.png',teamAbbr:'FF',divisionId:'12',divisionTitle:'12U A',photo:'https://images.example.invalid/player.png',g:4,a:6,pts:10,pim:2,sog:19,gaa:'—',svPct:'—',w:'—',so:'—'
+  });
+  const goalie=foundation.normalize.standingPlayer(playerFixture.data.rows[1],{kind:'goalie',divisionId:'12'});
+  assert.equal(goalie.id,'202');
+  assert.equal(goalie.name,'Goalie Example');
+  assert.equal(goalie.gaa,1.75);
+  assert.equal(goalie.svPct,0.925);
+  assert.equal(goalie.w,7);
+  assert.equal(goalie.so,2);
 });
 
 test('API client validates HTTP and GameSheet status without live network access',async()=>{
