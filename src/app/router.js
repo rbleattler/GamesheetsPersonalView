@@ -50,11 +50,17 @@
   applyRoute({ replaceMissing: true });
 
   // Broadcaster metadata is not present in the season-level unified-games feed.
-  // Hydrate it lazily from /api/games/game/:id/detail only when a user opens a game.
+  // Hydrate it lazily from /api/games/game/:id/detail and keep any discovered
+  // LiveBarn surface IDs as venue-level links in local browser storage.
   const foundation = window.MyHockeyHubFoundation;
   const drawerBody = document.getElementById('drawerBody');
+  const venuesView = document.getElementById('venuesView');
+  const venueStoreKey = 'myhockeyhub.livebarnVenues.v1';
+  const detailCache = new Map();
+  const venueRequests = new Map();
   let activeGameId = '';
   let activeBroadcast = null;
+  let activeVenue = null;
   let broadcastRequest = 0;
 
   function gameIdFromTarget(target) {
@@ -69,6 +75,87 @@
     );
   }
 
+  function gameIdFromDrawer() {
+    if (!drawerBody) return '';
+    const link = [...drawerBody.querySelectorAll('a[href*="gamesheetstats.com/seasons/"]')]
+      .find(node => /\/games\/[^/?#]+/.test(node.href));
+    const match = link?.href?.match(/\/games\/([^/?#]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  function venueKey(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function loadVenueMap() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(venueStoreKey) || '{}');
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  let venueMap = loadVenueMap();
+
+  function saveVenueMap() {
+    try { localStorage.setItem(venueStoreKey, JSON.stringify(venueMap)); } catch {}
+  }
+
+  function detailGame(detail) {
+    return detail?.game || detail?.data?.game || null;
+  }
+
+  function liveBarnVenue(detail) {
+    const game = detailGame(detail);
+    const livebarn = game?.broadcasters?.livebarn;
+    const surfaceId = String(livebarn?.surfaceId || '').trim();
+    const location = String(game?.location || '').trim();
+    if (!surfaceId || !location) return null;
+    return {
+      location,
+      surfaceId,
+      provider: 'LiveBarn',
+      url: `https://livebarn.com/en/video/${encodeURIComponent(surfaceId)}`
+    };
+  }
+
+  function rememberVenue(detail) {
+    const venue = liveBarnVenue(detail);
+    if (!venue) return null;
+    venueMap[venueKey(venue.location)] = venue;
+    saveVenueMap();
+    return venue;
+  }
+
+  function specificGameBroadcast(detail) {
+    const broadcast = foundation?.normalize?.broadcaster?.(detail);
+    if (!broadcast?.available || !broadcast.url) return null;
+    try {
+      const url = new URL(broadcast.url);
+      if (url.hostname.toLowerCase().includes('livebarn')) {
+        const parts = url.pathname.split('/').filter(Boolean);
+        // /en/video/<surface> is a useful venue page, but it is not a game-specific watch URL.
+        if (parts.length <= 3) return null;
+      }
+    } catch {
+      return null;
+    }
+    return broadcast;
+  }
+
+  function getDetail(gameId) {
+    const id = String(gameId || '');
+    if (!id || !foundation?.api?.gameDetail) return Promise.resolve(null);
+    if (!detailCache.has(id)) {
+      detailCache.set(id, foundation.api.gameDetail(id).catch(error => {
+        detailCache.delete(id);
+        throw error;
+      }));
+    }
+    return detailCache.get(id);
+  }
+
   function makeWatchLink(broadcast, className) {
     const link = document.createElement('a');
     link.dataset.broadcastWatch = 'true';
@@ -80,33 +167,99 @@
     return link;
   }
 
+  function makeVenueLink(venue, className = 'rowbtn watch-link') {
+    const link = document.createElement('a');
+    link.dataset.livebarnVenue = 'true';
+    link.className = className;
+    link.href = venue.url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.style.textDecoration = 'none';
+    link.textContent = 'LiveBarn venue ↗';
+    return link;
+  }
+
   function renderBroadcastLink() {
-    if (!drawerBody || !activeBroadcast?.available) return;
-    drawerBody.querySelectorAll('[data-broadcast-watch]').forEach(node => node.remove());
+    if (!drawerBody) return;
+    drawerBody.querySelectorAll('[data-broadcast-watch],[data-livebarn-venue-drawer]').forEach(node => node.remove());
+    drawerBody.querySelectorAll('.watch-link:not([data-livebarn-venue])').forEach(node => node.remove());
 
     const scoreCenter = drawerBody.querySelector('.game-scoreboard .score-center');
-    if (scoreCenter) {
-      scoreCenter.appendChild(makeWatchLink(activeBroadcast, 'score-gs watch-link'));
+    const actions = drawerBody.querySelector('.actions');
+
+    if (activeBroadcast?.available) {
+      const link = makeWatchLink(activeBroadcast, scoreCenter ? 'score-gs watch-link' : 'rowbtn watch-link');
+      if (scoreCenter) scoreCenter.appendChild(link);
+      else if (actions) actions.appendChild(link);
       return;
     }
 
-    const actions = drawerBody.querySelector('.actions');
-    if (actions) actions.appendChild(makeWatchLink(activeBroadcast, 'rowbtn watch-link'));
+    if (activeVenue?.url) {
+      const link = makeVenueLink(activeVenue, scoreCenter ? 'score-gs watch-link' : 'rowbtn watch-link');
+      link.dataset.livebarnVenueDrawer = 'true';
+      link.textContent = 'LiveBarn venue ↗';
+      if (scoreCenter) scoreCenter.appendChild(link);
+      else if (actions) actions.appendChild(link);
+    }
   }
 
   async function hydrateBroadcast(gameId) {
-    if (!gameId || !foundation?.api?.gameDetail) return;
+    if (!gameId) return;
     const request = ++broadcastRequest;
-    activeGameId = gameId;
+    activeGameId = String(gameId);
     activeBroadcast = null;
+    activeVenue = null;
+    renderBroadcastLink();
     try {
-      const detail = await foundation.api.gameDetail(gameId);
-      if (request !== broadcastRequest || activeGameId !== gameId) return;
-      activeBroadcast = foundation.normalize.broadcaster(detail);
+      const detail = await getDetail(gameId);
+      if (!detail || request !== broadcastRequest || activeGameId !== String(gameId)) return;
+      activeBroadcast = specificGameBroadcast(detail);
+      activeVenue = rememberVenue(detail);
       renderBroadcastLink();
+      renderVenueLinks();
     } catch (error) {
       console.warn('Game broadcaster detail unavailable', gameId, error);
     }
+  }
+
+  function ensureDrawerBroadcast() {
+    const gameId = gameIdFromDrawer();
+    if (!gameId) return;
+    if (gameId !== activeGameId) void hydrateBroadcast(gameId);
+    else renderBroadcastLink();
+  }
+
+  async function discoverVenue(card, location) {
+    const key = venueKey(location);
+    if (!key || venueMap[key] || venueRequests.has(key)) return;
+    const gameId = card.querySelector('[data-game]')?.dataset.game;
+    if (!gameId) return;
+    const request = getDetail(gameId)
+      .then(detail => {
+        rememberVenue(detail);
+        renderVenueLinks();
+      })
+      .catch(error => console.warn('Venue broadcaster detail unavailable', location, error))
+      .finally(() => venueRequests.delete(key));
+    venueRequests.set(key, request);
+  }
+
+  function renderVenueLinks() {
+    if (!venuesView) return;
+    venuesView.querySelectorAll('.venuecard').forEach(card => {
+      const location = card.querySelector('.venuehead h3')?.textContent?.trim() || '';
+      const key = venueKey(location);
+      const actions = card.querySelector('.actions');
+      if (!actions || !key) return;
+      const existing = actions.querySelector('[data-livebarn-venue]');
+      const venue = venueMap[key];
+      if (venue) {
+        if (!existing) actions.appendChild(makeVenueLink(venue));
+      } else {
+        existing?.remove();
+        void discoverVenue(card, location);
+      }
+    });
   }
 
   document.addEventListener('click', event => {
@@ -115,9 +268,18 @@
   });
 
   if (drawerBody) {
-    new MutationObserver(() => renderBroadcastLink()).observe(drawerBody, {
+    new MutationObserver(() => ensureDrawerBroadcast()).observe(drawerBody, {
       childList: true,
       subtree: true
     });
+    ensureDrawerBroadcast();
+  }
+
+  if (venuesView) {
+    new MutationObserver(() => renderVenueLinks()).observe(venuesView, {
+      childList: true,
+      subtree: true
+    });
+    renderVenueLinks();
   }
 })();
