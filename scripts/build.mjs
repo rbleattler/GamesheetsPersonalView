@@ -49,7 +49,7 @@ const gameCardFooter = '<div class="gfoot"><a class="link" target="_blank" rel="
 if (!appJs.includes(gameCardFooter)) throw new Error('Expected V3.6 game-card footer was not found.');
 appJs = appJs.replace(gameCardFooter, '<div class="gfoot"><div class="footer-actions"><a class="link" target="_blank" rel="noopener" href="https://gamesheetstats.com/seasons/${state.seasonId}/games/${g.gameId}">GameSheet ↗</a>${broadcastAction(g)}</div>');
 
-const detailsActions = '<div class="actions"><a class="rowbtn" style="text-decoration:none" href="${escAttr(gs)}" target="_blank" rel="noopener">Open on GameSheet ↗</a></div>`;
+const detailsActions = '<div class="actions"><a class="rowbtn" style="text-decoration:none" href="${escAttr(gs)}" target="_blank" rel="noopener">Open on GameSheet ↗</a></div>';
 if (!appJs.includes(detailsActions)) throw new Error('Expected V3.6 game-details actions were not found.');
 appJs = appJs.replace(detailsActions, '<div class="actions"><a class="rowbtn" style="text-decoration:none" href="${escAttr(gs)}" target="_blank" rel="noopener">Open on GameSheet ↗</a>${broadcastAction(g)}</div>');
 
