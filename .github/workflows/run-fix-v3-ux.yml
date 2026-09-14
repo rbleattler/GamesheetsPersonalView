@@ -1,0 +1,35 @@
+name: Run V3 UX fix
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply V3 patch
+        run: python tools/fix_v3_ux.py
+      - name: Validate inline JavaScript
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('v3.html').read_text()
+          scripts=re.findall(r'<script>(.*?)</script>',s,flags=re.S)
+          if len(scripts)!=1: raise SystemExit(f'Expected one inline script, got {len(scripts)}')
+          Path('/tmp/v3.js').write_text(scripts[0])
+          PY
+          node --check /tmp/v3.js
+      - name: Commit and clean one-shot tooling
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add v3.html
+          git rm .github/workflows/run-fix-v3-ux.yml tools/fix_v3_ux.py
+          git commit -m "fix: polish V3 mobile filters, players, and navigation"
+          git push origin HEAD:main
