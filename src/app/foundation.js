@@ -128,5 +128,5 @@ globalThis.MyHockeyHubFoundation={
   api:{fetchJson},
   normalize:{dataOf,firstData,game:normalizeGame,games:normalizeGames,broadcaster:normalizeBroadcaster},
   broadcast:{classifyUrl:classifyBroadcastUrl,isGenericLiveBarnUrl},
-  live:{createRefreshService}
+  live:{createRefreshService:createLiveRefreshService}
 };
