@@ -15,6 +15,7 @@ const required = [
   'assets/diagnostics.js',
   'assets/site.css',
   'data/seasons.json',
+  'debug/live-replay.json',
   'versions.html',
   'v3.6.html'
 ];
@@ -34,7 +35,7 @@ if (!homeHtml.includes('href="app/"') || !homeHtml.includes('href="versions.html
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
 if (!appJs.includes('MyHockeyHubLiveService')) throw new Error('App bundle is not exposing the shared live-refresh service.');
 if (!appJs.includes('MyHockeyHubDebug')) throw new Error('Preview diagnostics adapter was not emitted.');
-if (!foundationJs.includes('MyHockeyHubFoundation') || !foundationJs.includes('addEventListener') || !foundationJs.includes('"online"')) throw new Error('Foundation live reconnect handling was not emitted correctly.');
-if (!diagnosticsJs.includes('myhockeyhub.debug')) throw new Error('Diagnostics bundle was not emitted correctly.');
+if (!foundationJs.includes('MyHockeyHubFoundation') || !foundationJs.includes('addEventListener') || !foundationJs.includes('"online"') || !foundationJs.includes('createController')) throw new Error('Foundation live/replay support was not emitted correctly.');
+if (!diagnosticsJs.includes('myhockeyhub.debug') || !diagnosticsJs.includes('live-replay.json')) throw new Error('Diagnostics/replay bundle was not emitted correctly.');
 
 console.log('Build verification passed.');
