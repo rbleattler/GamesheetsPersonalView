@@ -56,6 +56,5 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-# The first production cutover is deliberately manual. Once Pages Source is
-# switched to GitHub Actions and this workflow deploys successfully, enable
-# push-to-main in a follow-up change.
+# First production cutover is manual by design. After the first successful
+# native Pages deployment, enable automatic push-to-main deployment.
