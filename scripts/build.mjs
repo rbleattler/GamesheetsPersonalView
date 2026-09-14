@@ -22,7 +22,7 @@ const styleMatch = legacy.match(/<style>([\s\S]*?)<\/style>/i);
 const scriptMatch = legacy.match(/<script>([\s\S]*?)<\/script>/i);
 if (!styleMatch || !scriptMatch) throw new Error('Could not find the V3.6 inline CSS/JS baseline.');
 
-let appCss = `${styleMatch[1]}\n.home-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-size:1.1rem;min-width:42px}`;
+let appCss = `${styleMatch[1]}\n.home-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-size:1.1rem;min-width:42px}.watch-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}`;
 let appJs = scriptMatch[1];
 
 const catalogFetch = "fetch('data/seasons.json'";
@@ -40,6 +40,18 @@ appJs = appJs.replace(legacyDataHelpers, "function dataOf(b){return window.MyHoc
 const gamesAssignment = 'state.games=dedupe(dataOf(g)||[])';
 if (!appJs.includes(gamesAssignment)) throw new Error('Expected V3.6 game assignment was not found.');
 appJs = appJs.replace(gamesAssignment, 'state.games=dedupe(window.MyHockeyHubFoundation.normalize.games(g))');
+
+const gameCardMarker = 'function gameCard(g){';
+if (!appJs.includes(gameCardMarker)) throw new Error('Expected V3.6 gameCard function was not found.');
+appJs = appJs.replace(gameCardMarker, "function broadcastAction(g,cls='rowbtn watch-link'){const b=g?._broadcast;if(!b?.available)return'';const provider=b.provider?` · ${b.provider}`:'';return`<a class=\"${escAttr(cls)}\" target=\"_blank\" rel=\"noopener\" href=\"${escAttr(b.url)}\">▶ ${esc(b.label||'Watch')}${esc(provider)} ↗</a>`}\nfunction gameCard(g){");
+
+const gameCardFooter = '<div class="gfoot"><a class="link" target="_blank" rel="noopener" href="https://gamesheetstats.com/seasons/${state.seasonId}/games/${g.gameId}">GameSheet ↗</a>';
+if (!appJs.includes(gameCardFooter)) throw new Error('Expected V3.6 game-card footer was not found.');
+appJs = appJs.replace(gameCardFooter, '<div class="gfoot"><div class="footer-actions"><a class="link" target="_blank" rel="noopener" href="https://gamesheetstats.com/seasons/${state.seasonId}/games/${g.gameId}">GameSheet ↗</a>${broadcastAction(g)}</div>');
+
+const detailsActions = '<div class="actions"><a class="rowbtn" style="text-decoration:none" href="${escAttr(gs)}" target="_blank" rel="noopener">Open on GameSheet ↗</a></div>`;
+if (!appJs.includes(detailsActions)) throw new Error('Expected V3.6 game-details actions were not found.');
+appJs = appJs.replace(detailsActions, '<div class="actions"><a class="rowbtn" style="text-decoration:none" href="${escAttr(gs)}" target="_blank" rel="noopener">Open on GameSheet ↗</a>${broadcastAction(g)}</div>');
 
 const visibilityHook = "document.addEventListener('visibilitychange',()=>{if(!document.hidden)pollLive()});";
 if (!appJs.includes(visibilityHook)) throw new Error('Expected live-refresh visibility hook was not found in V3.6.');
