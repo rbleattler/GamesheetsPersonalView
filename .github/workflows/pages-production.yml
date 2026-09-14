@@ -55,6 +55,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
-# First production cutover is manual by design. After the first successful
-# native Pages deployment, enable automatic push-to-main deployment.
