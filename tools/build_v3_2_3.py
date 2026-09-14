@@ -1,0 +1,51 @@
+from pathlib import Path
+import re
+
+src = Path('v3.2.2.html').read_text(encoding='utf-8')
+s = src.replace('MyHockeyHub — V3.2.2', 'MyHockeyHub — V3.2.3').replace('>V3.2.2<', '>V3.2.3<')
+
+old_group = "function groupEvents(items){const m=new Map();for(const e of items){const k=e.periodLabel||e.period||'';if(!m.has(k))m.set(k,[]);m.get(k).push(e)}return[...m.entries()].map(([period,periodEvents])=>({period,periodEvents}))}"
+new_group = r'''function periodSortKey(v){const s=String(v||'').trim().toUpperCase(),m=s.match(/\d+/);if(m)return Number(m[0]);if(s.includes('OT'))return 100;if(s.includes('SO'))return 200;return 999}
+function clockSortSeconds(v){const p=String(v||'').trim().split(':').map(Number);if(p.length===2&&p.every(Number.isFinite))return p[0]*60+p[1];if(p.length===3&&p.every(Number.isFinite))return p[0]*3600+p[1]*60+p[2];return -1}
+function compareGameEvents(a,b){const pd=periodSortKey(a?.periodLabel||a?.period)-periodSortKey(b?.periodLabel||b?.period);if(pd)return pd;return clockSortSeconds(b?.time)-clockSortSeconds(a?.time)}
+function groupEvents(items){const m=new Map();for(const e of [...(items||[])].sort(compareGameEvents)){const k=e.periodLabel||e.period||'';if(!m.has(k))m.set(k,[]);m.get(k).push(e)}return[...m.entries()].map(([period,periodEvents])=>({period,periodEvents}))}'''
+if old_group not in s:
+    raise SystemExit('groupEvents source pattern not found')
+s = s.replace(old_group, new_group, 1)
+
+box_pat = re.compile(r"function boxFromFirestore\(g,d\)\{.*?\}\nfunction openGameDetails", re.S)
+new_box = r'''function penaltyMinutesValue(v){if(v==null||v==='')return 0;if(typeof v==='number')return Number.isFinite(v)?v:0;const s=String(v).trim();if(/^\d+:\d+$/.test(s)){const [m,sec]=s.split(':').map(Number);return m+(sec/60)}const m=s.match(/\d+(?:\.\d+)?/);return m?Number(m[0]):0}
+function boxFromFirestore(g,d){const vd=d?.data?.visitor||{},hd=d?.data?.home||{},score=d?.computed?.scoreboard?.total||{},shots=d?.computed?.shots?.total||{},ev=Object.values(d?.events||{}),goals=[],pens=[],visitorIds=new Set((vd?.lineup?.players||[]).map(p=>String(p.id))),homeIds=new Set((hd?.lineup?.players||[]).map(p=>String(p.id))),pim={visitor:0,home:0};const teamSideForId=id=>String(id||'')===String(g.visitor?.id)?'visitor':String(id||'')===String(g.home?.id)?'home':'';const sideFor=p=>visitorIds.has(String(p?.id))?'visitor':homeIds.has(String(p?.id))?'home':'';const sideForEvent=(e,p)=>teamSideForId(e?.for?.team?.id??e?.team?.id??e?.for?.teamId??e?.teamId)||sideFor(p);for(const e of ev){const type=String(e?.type||''),c=statClock(e?.time?.clock);if(type.includes('Goal')&&e?.for?.scorer){const a=Array.isArray(e.for.assist)?e.for.assist:[];goals.push({periodLabel:c.period,time:c.time,goalScorer:normStatPlayer(e.for.scorer),assist1By:normStatPlayer(a[0]),assist2By:normStatPlayer(a[1]),teamSide:sideForEvent(e,e.for.scorer)})}if(type.includes('HockeyPenalty')){const player=normStatPlayer(e?.for?.player||e?.player||{}),side=sideForEvent(e,player),duration=e?.penalty?.length??e?.penalty?.duration??e?.duration??'',minutes=penaltyMinutesValue(duration);if(side)pim[side]+=minutes;pens.push({periodLabel:c.period,time:c.time,committedBy:player,teamSide:side,penaltyType:{title:e?.penalty?.label||e?.penalty?.code||'Penalty',duration,minutes}})}}const rosterPim=data=>(data?.lineup?.players||[]).reduce((sum,p)=>sum+penaltyMinutesValue(p?.stats?.pim??p?.pim),0);const team=(side,data,base)=>{const basePim=penaltyMinutesValue(base?.pim??base?.penaltyMinutes),resolvedPim=pim[side]>0?pim[side]:(basePim>0?basePim:rosterPim(data));return{...base,title:base?.title||data?.details?.title||side,logo:base?.logo||data?.details?.logo||'',primaryColor:base?.primaryColor||base?.primaryColour||data?.details?.primaryColor||data?.details?.primaryColour||'',finalScore:score?.[side]??base?.goals,sog:shots?.[side]??base?.shots,pim:resolvedPim,roster:{players:(data?.lineup?.players||[]).map(normStatPlayer)}}};return{visitor:team('visitor',vd,g.visitor||{}),home:team('home',hd,g.home||{}),tables:{goalsByPeriod:groupEvents(goals),penaltiesByPeriod:groupEvents(pens)}}}
+function openGameDetails'''
+s, n = box_pat.subn(lambda _: new_box, s, count=1)
+if n != 1:
+    raise SystemExit(f'boxFromFirestore replacement count={n}')
+
+render_pat = re.compile(r"function renderStats\(g,b\)\{.*?\}\nfunction sbox", re.S)
+new_render = r'''function pimDisplay(v){const n=Number(v);if(!Number.isFinite(n))return v??'—';return Number.isInteger(n)?String(n):String(Math.round(n*100)/100)}
+function teamPimValue(t){if(t?.pim!=null&&t.pim!=='')return pimDisplay(t.pim);const total=(t?.roster?.players||[]).reduce((sum,p)=>sum+penaltyMinutesValue(p?.stats?.pim??p?.pim),0);return pimDisplay(total)}
+function renderStats(g,b){state._statsBox=b;state._statsGame=g;const away=b.visitor||g.visitor,home=b.home||g.home;for(const side of ['visitor','home'])for(const p of (b?.[side]?.roster?.players||[]))registerPlayer(statsPlayerRecord(p,b[side]));const awayPim=teamPimValue(away),homePim=teamPimValue(home),gs=`https://gamesheetstats.com/seasons/${state.seasonId}/games/${g.gameId}`;els.drawerBody.innerHTML=`<div class="statscore"><div class="team">${logo(away,'sm')}<b>${esc(away.title||'Away')}</b></div><div class="bigscore">${esc(away.finalScore??g.visitor?.goals??'—')} – ${esc(home.finalScore??g.home?.goals??'—')}</div><div class="team">${logo(home,'sm')}<b>${esc(home.title||'Home')}</b></div></div><div class="gamesheet-linkbar"><a class="link" target="_blank" rel="noopener" href="${escAttr(gs)}">Open on GameSheet ↗</a></div><div class="tabs"><button class="tab active" data-tab="summary">Summary</button><button class="tab" data-tab="scoring">Scoring</button><button class="tab" data-tab="penalties">Penalties</button><button class="tab" data-tab="players">Players</button></div><div id="summaryPane" class="pane active"><div class="statssection"><h3>Team stats</h3><div class="statsgrid">${sbox('Away score',away.finalScore??g.visitor?.goals)}${sbox('Home score',home.finalScore??g.home?.goals)}${sbox('Away SOG',away.sog??'—')}${sbox('Home SOG',home.sog??'—')}${sbox('Away PIM',awayPim)}${sbox('Home PIM',homePim)}</div></div><div class="statssection"><h3>Scoring summary</h3>${eventList(goals(b).sort(compareGameEvents),'goal')}</div></div><div id="scoringPane" class="pane"><div class="statssection"><h3>Scoring</h3>${eventList(goals(b).sort(compareGameEvents),'goal')}</div></div><div id="penaltiesPane" class="pane"><div class="statssection"><h3>Penalties <span class="muted" style="font-size:.78rem;font-weight:500">${esc(abbr(away))} ${esc(awayPim)} PIM · ${esc(abbr(home))} ${esc(homePim)} PIM</span></h3>${eventList(penalties(b).sort(compareGameEvents),'penalty')}</div></div><div id="playersPane" class="pane"><div class="statssection"><h3>Players</h3>${playerTable(b)}</div></div>`;els.drawerBody.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{els.drawerBody.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===btn));els.drawerBody.querySelectorAll('.pane').forEach(x=>x.classList.remove('active'));$(btn.dataset.tab+'Pane').classList.add('active')})}
+function sbox'''
+s, n = render_pat.subn(lambda _: new_render, s, count=1)
+if n != 1:
+    raise SystemExit(f'renderStats replacement count={n}')
+
+s = s.replace('@media(max-width:560px){', '@media(max-width:560px){.statsgrid{grid-template-columns:repeat(2,minmax(0,1fr))}', 1)
+Path('v3.2.3.html').write_text(s, encoding='utf-8')
+
+stable = Path('gamesheets_plus.html').read_text(encoding='utf-8')
+stable = stable.replace('V3.2.2', 'V3.2.3').replace("'3.2.2'", "'3.2.3'").replace("'v3.2.2.html'", "'v3.2.3.html'")
+start = stable.index('  <div class="items">')
+end = stable.index('  <div id="originalNote"', start)
+items = '''  <div class="items">\n    <div class="item"><div class="check">✓</div><div><b>Game events in hockey order</b><span>Scoring and penalties are now ordered by period, then by the countdown clock within each period.</span></div></div>\n    <div class="item"><div class="check">✓</div><div><b>PIM totals restored</b><span>Game summaries now show away/home penalty minutes, and the Penalties view shows team totals too.</span></div></div>\n    <div class="item"><div class="check">✓</div><div><b>Better penalty-side detection</b><span>Penalty minutes now use the event team when GameSheet provides it, with lineup-based fallback.</span></div></div>\n  </div>\n'''
+stable = stable[:start] + items + stable[end:]
+Path('gamesheets_plus.html').write_text(stable, encoding='utf-8')
+
+index = Path('index.html').read_text(encoding='utf-8')
+index = index.replace('<div class="version"><div class="tag current">V3.2.2</div>', '<div class="version"><div class="tag">V3.2.2</div>', 1)
+marker = '<section class="versions">\n'
+card = '<div class="version"><div class="tag current">V3.2.3</div><div class="desc"><b>Penalty totals and chronological game events</b><span>Corrected scoring/penalty ordering to period + countdown time, restored team PIM totals in game summaries, and improved penalty-side detection for more accurate team totals.</span></div><a class="open" href="v3.2.3.html">Open V3.2.3</a></div>\n'
+if marker not in index:
+    raise SystemExit('index version marker not found')
+index = index.replace(marker, marker + card, 1)
+Path('index.html').write_text(index, encoding='utf-8')
