@@ -10,7 +10,14 @@ MyHockeyHub is a mobile-first hockey schedule, scores, and stats viewer built ar
 - **Published version history:** https://rbleattler.com/GamesheetsPersonalView/
 - **Current numbered version:** `v3.6.html`
 
-The `feature/app-shell-v4` branch is restructuring the project into a real static web app. Its build output uses `/` as the home page, `/app/` as the application, and `/versions.html` as the historical version browser. The published URLs above remain the V3.6 experience until that work is reviewed and deployed.
+The `feature/app-shell-v4` branch is restructuring the project into a real static web app. Its build output uses `/` as the home page, `/app/` as the application, and `/versions.html` as the historical version browser. The published URLs above remain the V3.6 experience until that work is explicitly approved and deployed.
+
+The current PR build is isolated at:
+
+- **PR #9 preview:** https://rbleattler.com/GamesheetsPersonalView/pr-preview/pr-9/
+- **Preview diagnostics/replay:** https://rbleattler.com/GamesheetsPersonalView/pr-preview/pr-9/app/?debug=1
+
+Nothing under the preview path is promoted to the production root automatically.
 
 ## What it does
 
@@ -40,6 +47,7 @@ The new structure stays intentionally lightweight: static HTML, CSS, and JavaScr
 ```bash
 npm install
 npm run check
+npm test
 npm run build
 npm run verify
 ```
@@ -54,6 +62,7 @@ dist/
   app/index.html      # primary app
   assets/             # app/site CSS and JavaScript
   data/               # local season catalog
+  debug/              # sanitized replay fixtures for explicit debug mode
   versions.html       # version history
   v*.html             # preserved historical versions
 ```
@@ -64,11 +73,21 @@ See [`docs/app-shell.md`](docs/app-shell.md) for the migration design and transi
 
 ## CI and external data
 
-GitHub Actions validates and builds the app without calling GameSheet. Public GameSheet endpoints can be subject to Cloudflare/bot protection, so CI must not depend on live endpoint access. Regression tests and live-score simulations should use sanitized fixtures/mocks. Any live schema-drift probe should be an explicit local developer action.
+GitHub Actions validates and builds the app without calling GameSheet. Public GameSheet endpoints can be subject to Cloudflare/bot protection, so CI does not depend on live endpoint access. Regression tests and live-score simulations use sanitized fixtures/mocks.
 
-## Live scores
+For an explicit local schema check, run:
 
-V3.6 already refreshes visible live games every 30 seconds and pauses that work while the page is hidden. The app-shell build also refreshes immediately when the browser reports that connectivity has returned. A fixture-driven replay simulator and further live-refresh isolation are tracked as follow-up work.
+```bash
+npm run probe:schema -- --season 15111
+```
+
+or pass a public HTTPS endpoint with `--url`. The schema probe is intentionally local-only and is never invoked by CI.
+
+## Live scores and replay testing
+
+The app-shell preview now routes live refresh through a dedicated service with overlap protection, 30-second polling, page-visibility awareness, and immediate refresh when connectivity returns. The production V3.6 implementation remains unchanged until the app-shell work is approved.
+
+Append `?debug=1` to the preview app URL to open the diagnostics panel. It shows polling state, last refresh/error state, broadcaster-link counts, and a **fixture replay** control. The replay walks a local fake game through scheduled → live score changes → final so score-state behavior can be exercised even when no real game is live. Replay data is local and never writes to GameSheet.
 
 ## Help and feedback
 
