@@ -33,9 +33,12 @@ if (!appHtml.includes('href="../"') || !appHtml.includes('aria-label="Home"')) t
 if (!appHtml.includes('../assets/foundation.js') || !appHtml.includes('../assets/app.js') || !appHtml.includes('../assets/router.js') || !appHtml.includes('../assets/diagnostics.js')) throw new Error('External app bundles are missing.');
 if (!homeHtml.includes('href="app/"') || !homeHtml.includes('href="versions.html"')) throw new Error('Home page navigation is incomplete.');
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
+for (const method of ['seasonInfo','seasonDivisions','unifiedGames','skaterStandings','goalieStandings']) {
+  if (!appJs.includes(method)) throw new Error(`App bundle is not using API client method ${method}.`);
+}
 if (!appJs.includes('MyHockeyHubLiveService')) throw new Error('App bundle is not exposing the shared live-refresh service.');
 if (!appJs.includes('MyHockeyHubDebug')) throw new Error('Preview diagnostics adapter was not emitted.');
-if (!foundationJs.includes('MyHockeyHubFoundation') || !foundationJs.includes('addEventListener') || !foundationJs.includes('"online"') || !foundationJs.includes('createController')) throw new Error('Foundation live/replay support was not emitted correctly.');
+if (!foundationJs.includes('MyHockeyHubFoundation') || !foundationJs.includes('addEventListener') || !foundationJs.includes('"online"') || !foundationJs.includes('createController') || !foundationJs.includes('firestoreGame')) throw new Error('Foundation API/live/replay support was not emitted correctly.');
 if (!diagnosticsJs.includes('myhockeyhub.debug') || !diagnosticsJs.includes('live-replay.json')) throw new Error('Diagnostics/replay bundle was not emitted correctly.');
 
 console.log('Build verification passed.');
