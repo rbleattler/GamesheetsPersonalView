@@ -29,6 +29,7 @@ function createApiClient({fetchImpl=globalThis.fetch}={}){
     seasonInfo:seasonId=>get(seasonPath('season-info',seasonId)),
     seasonDivisions:seasonId=>get(seasonPath('season-divisions',seasonId)),
     unifiedGames:seasonId=>get(seasonPath('unified-games',seasonId)),
+    gameDetail:gameId=>get(`${API_BASE}/games/game/${encodeURIComponent(String(gameId))}/detail`),
     skaterStandings:(seasonId,query='')=>get(appendQuery(seasonPath('players/standings',seasonId),query)),
     goalieStandings:(seasonId,query='')=>get(appendQuery(seasonPath('goalies/standings',seasonId),query)),
     firestoreGame:(seasonId,gameId)=>get(`${FIRESTORE_GAME_BASE}/${encodeURIComponent(String(seasonId))}/games/${encodeURIComponent(String(gameId))}`)
