@@ -4,7 +4,9 @@ This is the practical guide for the things that are useful but not always obviou
 
 ## I’m new. Where do I start?
 
-Open the stable MyHockeyHub URL. On a first visit, MyHockeyHub asks you to choose a **league / season** before loading the schedule. After that, add your teams from **My Teams** and optionally follow players or favorite venues.
+Open the MyHockeyHub home page and choose **Open MyHockeyHub**. On a first visit, MyHockeyHub asks you to choose a **league / season** before loading the schedule. After that, add your teams from **My Teams** and optionally follow players or favorite venues.
+
+The old `gamesheets_plus.html` URL is still supported for legacy bookmarks, but it now redirects to the normal MyHockeyHub landing page.
 
 ## How do I find or change leagues / seasons?
 
@@ -48,7 +50,9 @@ Tap the **☆** beside a rink on a game card. A filled **★** means it is saved
 
 ## How do I open game stats?
 
-For completed or live games, tap the game card or **Stats**. The drawer can include score, shots, PIM, summary timeline, scoring, penalties, box score, and players. The **GameSheet ↗** link opens the original source page.
+For completed or live games, tap the game card or **Stats**. The drawer can include score, shots, PIM, summary timeline, scoring, penalties, box score, and players.
+
+Game cards use a consistent **GameSheet** button to open the original source page. When an actionable game-specific LiveBarn URL is available, a matching **LiveBarn** button appears alongside it.
 
 ## Why did a GameSheet “Live” game disappear?
 
@@ -56,9 +60,11 @@ MyHockeyHub treats a game still marked Live more than 24 hours after its schedul
 
 To see them, open **Settings → Show stale games**.
 
-## Why might a stat, player, or event be missing?
+## Why might a stat, player, event, or LiveBarn link be missing?
 
-MyHockeyHub can only show what is available in the public source data. Missing venue information, incomplete lineups, missing assists, incomplete player stats, duplicates, and stale statuses can all happen. MyHockeyHub avoids inventing source data.
+MyHockeyHub can only show what is available in the public source data. Missing venue information, incomplete lineups, missing assists, incomplete player stats, duplicates, stale statuses, or absent broadcaster metadata can all happen. MyHockeyHub avoids inventing source data.
+
+Generic LiveBarn home/venue pages are not treated as game-specific watch links. The app only surfaces a game LiveBarn action when it has an actionable game-specific URL.
 
 ## What is the ? button?
 
@@ -92,9 +98,13 @@ They are stored in your browser with `localStorage`. There is no MyHockeyHub acc
 
 Open **Settings → App data → Clear all MyHockeyHub data**. This removes locally saved teams, players, venues, added seasons, theme settings, and other MyHockeyHub preferences from that browser.
 
-## What is gamesheets_plus.html?
+## What is `gamesheets_plus.html`?
 
-It is the stable “latest version” URL. It can show first-run onboarding or a one-time What’s New message, then forwards to the current numbered version. Older versions stay available from the version-history page.
+It is a legacy compatibility URL kept so old bookmarks and links do not break. It redirects to the normal MyHockeyHub landing page. It is no longer a separate version selector or numbered-version launcher.
+
+## Where did the old numbered versions go?
+
+The standalone V1–V3.6 prototype files are preserved in Git history and the `prototype-version-archive` GitHub release/tag. They are intentionally no longer hosted as part of the current production site.
 
 ## Is MyHockeyHub affiliated with GameSheet?
 
