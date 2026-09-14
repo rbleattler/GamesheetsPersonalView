@@ -21,7 +21,6 @@ MyHockeyHub currently supports:
 - Full-season schedule browsing and search
 - Type-ahead league / season discovery from a periodically refreshed local catalog
 - Conservative acronym fallback for familiar league abbreviations such as DVHL
-- Type-ahead league / season discovery from a periodically refreshed local catalog
 - Division, team, date-range, rink, and status filtering
 - Multiple **My Teams** for families with players on different teams
 - Division-first team selection
@@ -50,11 +49,13 @@ The project intentionally stays simple:
 
 The application reads public GameSheet/`gamesheetstats.com` data in the browser and renders it into a more personalized mobile experience.
 
-## Season catalog
+## League / season catalog
 
-`data/seasons.json` is a manually refreshed snapshot of publicly discoverable GameSheet seasons. It powers the in-app league/season finder without requiring GameSheet's partner-only season-search API.
+The app cannot use GameSheet’s partner-only season-directory search API, so MyHockeyHub ships a periodically refreshed snapshot at [`data/seasons.json`](data/seasons.json). The finder searches that file locally in the browser; normal app use does not scrape season IDs.
 
-The catalog is intentionally treated as a convenience index rather than an authoritative live directory. New seasons can appear after the snapshot is generated, so the app keeps the direct GameSheet season URL / season-ID entry path as a fallback. Search favors exact and normal text matches first; inferred acronyms are used only as a lower-confidence fallback.
+Search ranking favors exact names, starts-with and token matches, explicit acronyms already present in a season name, and current/recent seasons. Generated acronyms are deliberately conservative: for example, **Delaware Valley Hockey League** can be found with **DVHL**, but inferred acronym matches rank below direct textual matches and require an exact acronym match.
+
+The snapshot can lag newly created seasons, so the finder retains a direct GameSheet season ID / URL fallback.
 
 ## Privacy and local data
 
@@ -84,40 +85,31 @@ Major milestones include:
 - **V3.4.1** — natural age/tier ordering for division selectors
 - **V3.4.2** — explicit Add Players multi-selection flow
 - **V3.5** — searchable league/season catalog with cautious acronym matching
-- **V3.4.2** — clearer multi-player selection flow
-- **V3.5** — searchable league/season catalog with conservative acronym matching
 
 ## Quick start
 
 1. Open the stable latest-version URL.
-2. Choose **My Teams** and add a team by first selecting its division, then the team.
-3. Add additional teams if more than one family member plays.
-4. Star venues you care about.
-5. Open **Players** to browse a saved team roster or follow individual players.
-6. Use **Schedule** for league-wide searching and filtering.
-7. Tap completed/live games to open detailed game stats.
+2. Use **Settings → Find league / season** if you need a different league or season.
+3. Choose **My Teams** and add a team by first selecting its division, then the team.
+4. Add additional teams if more than one family member plays.
+5. Star venues you care about.
+6. Open **Players** to browse a saved team roster or follow individual players.
+7. Use **Schedule** for league-wide searching and filtering.
+8. Tap completed/live games to open detailed game stats.
 
 ## Help / FAQ
 
 Some features are intentionally compact on mobile and are not immediately obvious. See [FAQ.md](FAQ.md) for practical how-to guidance, including:
 
+- How to find or change leagues / seasons
 - How to add multiple My Teams
-- How to follow a player
-- What the star icon means in Add Players
+- How to follow players from the Add Players multi-select screen
 - How My Teams Roster works
 - How venue favorites work
 - Why some “Live” games disappear
 - How to show stale games
 - Where preferences are stored
 - How to reset the app
-
-## League / season catalog
-
-The app cannot use GameSheet’s partner-only season-directory search API, so MyHockeyHub ships a periodically refreshed snapshot at [`data/seasons.json`](data/seasons.json). The finder searches that file locally in the browser; normal app use does not scrape season IDs.
-
-Search ranking favors exact names, starts-with and token matches, explicit acronyms already present in a season name, and current/recent seasons. Generated acronyms are deliberately conservative: for example, **Delaware Valley Hockey League** can be found with **DVHL**, but inferred acronym matches rank below direct textual matches and require an exact acronym match.
-
-The snapshot can lag newly created seasons, so the finder retains a direct GameSheet season ID / URL fallback.
 
 ## Data quality notes
 
