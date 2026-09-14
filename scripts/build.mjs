@@ -53,7 +53,7 @@ const detailsActions = '<div class="actions"><a class="rowbtn" style="text-decor
 if (!appJs.includes(detailsActions)) throw new Error('Expected V3.6 game-details actions were not found.');
 appJs = appJs.replace(detailsActions, '<div class="actions"><a class="rowbtn" style="text-decoration:none" href="${escAttr(gs)}" target="_blank" rel="noopener">Open on GameSheet ↗</a>${broadcastAction(g)}</div>');
 
-const pollerPattern = /async function pollLive\(\)\{[\s\S]*?\}function startPolling\(\)\{[\s\S]*?\}function updateStatus\(\)\{/;
+const pollerPattern = /async function pollLive\(\)\{[\s\S]*?\}\s*function startPolling\(\)\{[\s\S]*?\}\s*function updateStatus\(\)\{/;
 if (!pollerPattern.test(appJs)) throw new Error('Expected V3.6 live poller was not found.');
 appJs = appJs.replace(pollerPattern, `let liveRefreshService=null;
 function createAppLiveRefreshService(){return window.MyHockeyHubFoundation.live.createRefreshService({intervalMs:LIVE_MS,getVisibleLive:visibleLive,fetchSnapshot:liveSnapshot,applySnapshots:good=>{if(!good.length)return;const m=new Map(good.map(g=>[String(g.gameId),g]));state.games=state.games.map(g=>m.get(String(g.gameId))||g);render()},onStatus:s=>{state.polling=!!s.running;if(s.lastSuccess)state.lastLive=s.lastSuccess;state.lastError=!!s.lastError;if(!s.running)updateStatus()}})}
