@@ -1,6 +1,8 @@
 (() => {
   'use strict';
 
+  const decoratedAttr = 'data-card-actions-decorated';
+
   function labelIcon(kind) {
     const span = document.createElement('span');
     span.className = `game-action-icon ${kind}`;
@@ -15,6 +17,13 @@
   }
 
   function decorateCard(card) {
+    if (!card || card.getAttribute(decoratedAttr) === 'true') return;
+
+    // Mark before mutating the card. Moving its existing footer controls creates
+    // child-list mutations; marking first prevents those mutations from
+    // scheduling the same card again.
+    card.setAttribute(decoratedAttr, 'true');
+
     const meta = card.querySelector('.gmeta');
     if (meta) {
       for (const group of [...meta.children]) {
@@ -31,8 +40,10 @@
     const liveBarn = foot.querySelector('a[href*="livebarn.com"]');
     const stats = foot.querySelector('button.stats');
 
-    // Keep plain scheduled-card footers alone unless there is a second action.
-    if (!stats && !liveBarn) return;
+    // Scheduled cards have no Stats action and normally no broadcaster action.
+    // Leave those cards in their existing compact layout rather than creating
+    // a one-button footer row.
+    if (!liveBarn && !stats) return;
 
     let row = foot.querySelector(':scope > .game-action-row');
     if (!row) {
@@ -71,23 +82,27 @@
     foot.classList.toggle('game-foot-actions', row.children.length > 0);
   }
 
-  function decorateAll() {
-    document.querySelectorAll('.gamecard').forEach(decorateCard);
+  function collectCards(node, cards) {
+    if (!(node instanceof Element)) return;
+    if (node.matches('.gamecard')) cards.add(node);
+    node.querySelectorAll?.('.gamecard').forEach(card => cards.add(card));
   }
 
-  let queued = false;
-  function scheduleDecorate() {
-    if (queued) return;
-    queued = true;
-    queueMicrotask(() => {
-      queued = false;
-      decorateAll();
-    });
+  function decorateAddedNodes(records) {
+    const cards = new Set();
+    for (const record of records) {
+      for (const node of record.addedNodes) collectCards(node, cards);
+    }
+    for (const card of cards) decorateCard(card);
   }
 
-  new MutationObserver(scheduleDecorate).observe(document.body, {
+  // Initial pass is intentionally a single scan. Subsequent work is limited to
+  // newly rendered card subtrees, so switching to Entire Season remains O(n)
+  // rather than repeatedly rescanning all cards for every footer DOM mutation.
+  document.querySelectorAll('.gamecard').forEach(decorateCard);
+
+  new MutationObserver(decorateAddedNodes).observe(document.body, {
     childList: true,
     subtree: true
   });
-  decorateAll();
 })();
