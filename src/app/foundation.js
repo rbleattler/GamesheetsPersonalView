@@ -96,6 +96,56 @@ function normalizeGames(body){
   return(Array.isArray(data)?data:[]).map(normalizeGame);
 }
 
+function numberOrZero(value){return value==null||value===''?0:Number(value)}
+function extractStandingRows(body){
+  const roots=[],seen=new Set();
+  function walk(value,depth=0){
+    if(value==null||depth>5)return;
+    if(Array.isArray(value)){
+      if(value.length&&value.some(x=>x&&typeof x==='object'&&!Array.isArray(x)))roots.push(value);
+      for(const x of value.slice(0,5))walk(x,depth+1);
+      return;
+    }
+    if(typeof value!=='object'||seen.has(value))return;
+    seen.add(value);
+    for(const [key,child] of Object.entries(value))if(['data','players','standings','rows','results','items','skaters','goalies','entries'].includes(key))walk(child,depth+1);
+    for(const child of Object.values(value))if(child&&typeof child==='object')walk(child,depth+1);
+  }
+  walk(body);
+  const score=rows=>rows.reduce((n,row)=>n+(row&&(row.player||row.skater||row.goalie||row.firstName||row.lastName||row.name||row.title||row.stats)?1:0),0);
+  return roots.sort((a,b)=>score(b)-score(a)||b.length-a.length)[0]||[];
+}
+function normalizeStandingPlayer(row,{kind='skater',divisionId=''}={}){
+  const r=row||{},p=r.player||r.skater||r.goalie||r,team=r.team||p.team||{},stats=r.stats||p.stats||r,division=r.division||p.division||{};
+  const first=p.firstName||r.firstName||'',last=p.lastName||r.lastName||'',name=(p.name||p.title||r.name||r.title||`${first} ${last}`).trim();
+  return{
+    id:String(p.id??r.playerId??r.id??''),
+    name,
+    kind,
+    number:p.number??p.jersey??r.number??r.jersey??'',
+    position:p.position??r.position??'',
+    teamId:String(team.id??r.teamId??p.teamId??''),
+    teamTitle:team.title||team.name||r.teamTitle||r.teamName||'',
+    teamLogo:team.logo||r.teamLogo||'',
+    teamAbbr:team.abbr||r.teamAbbr||'',
+    divisionId:String(division.id??divisionId??''),
+    divisionTitle:division.title||'',
+    photo:p.photoURL||p.photo||r.photoURL||r.photo||'',
+    g:numberOrZero(stats.g??stats.goals),
+    a:numberOrZero(stats.a??stats.assists),
+    pts:numberOrZero(stats.pts??stats.points),
+    pim:numberOrZero(stats.pim),
+    sog:numberOrZero(stats.sog??stats.shots),
+    gaa:stats.gaa??r.gaa??'—',
+    svPct:stats.savePct??stats.svPct??stats.svPercentage??r.savePct??'—',
+    w:stats.w??stats.wins??r.wins??'—',
+    so:stats.so??stats.shutouts??r.shutouts??'—'
+  };
+}
+function normalizeStandingPlayers(body,options={}){
+  return extractStandingRows(body).map(row=>normalizeStandingPlayer(row,options)).filter(player=>player.id&&player.name);
+}
+
 function createReplayController(snapshots,{normalize=normalizeGame}={}){
   const rows=(Array.isArray(snapshots)?snapshots:[]).map(x=>normalize({...x}));
   let index=0;
@@ -159,7 +209,7 @@ const apiClient=createApiClient();
 globalThis.MyHockeyHubFoundation={
   API_BASE,
   api:{...apiClient,createClient:createApiClient},
-  normalize:{dataOf,firstData,game:normalizeGame,games:normalizeGames,broadcaster:normalizeBroadcaster},
+  normalize:{dataOf,firstData,game:normalizeGame,games:normalizeGames,broadcaster:normalizeBroadcaster,standingRows:extractStandingRows,standingPlayer:normalizeStandingPlayer,standingPlayers:normalizeStandingPlayers},
   broadcast:{classifyUrl:classifyBroadcastUrl,isGenericLiveBarnUrl},
   live:{createRefreshService:createLiveRefreshService},
   replay:{createController:createReplayController}
