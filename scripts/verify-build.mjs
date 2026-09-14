@@ -27,6 +27,7 @@ const required = [
 await Promise.all(required.map(path => access(join(dist, path))));
 const appHtml = await readFile(join(dist, 'app/index.html'), 'utf8');
 const homeHtml = await readFile(join(dist, 'index.html'), 'utf8');
+const legacyLauncherHtml = await readFile(join(dist, 'gamesheets_plus.html'), 'utf8');
 const appCss = await readFile(join(dist, 'assets/app.css'), 'utf8');
 const appJs = await readFile(join(dist, 'assets/app.js'), 'utf8');
 const guardJs = await readFile(join(dist, 'assets/fetch-guard.js'), 'utf8');
@@ -44,11 +45,13 @@ if (!homeHtml.includes('assets/site.css?v=')) throw new Error('Home stylesheet i
 if (!homeHtml.includes('href="app/"')) throw new Error('Home page app navigation is incomplete.');
 if (homeHtml.includes('versions.html')) throw new Error('Home page still links to the retired hosted version archive.');
 if (!homeHtml.includes('prototype-version-archive')) throw new Error('Home page does not reference the GitHub prototype archive.');
+if (!legacyLauncherHtml.includes('http-equiv="refresh" content="0;url=./"') || !legacyLauncherHtml.includes("location.replace('./')")) throw new Error('Legacy gamesheets_plus.html does not redirect to the landing page.');
+if (legacyLauncherHtml.includes('url=app/') || legacyLauncherHtml.includes("location.replace('app/")) throw new Error('Legacy gamesheets_plus.html still redirects directly to the app.');
 if (!guardJs.includes('MyHockeyHubFetchGuard') || !guardJs.includes('AbortController') || !guardJs.includes('TimeoutError')) throw new Error('Fetch timeout guard was not emitted correctly.');
 if (!venueLinksJs.includes('livebarnVenues.v1') || !venueLinksJs.includes('gamecard') || !venueLinksJs.includes('LiveBarn venue')) throw new Error('Venue LiveBarn inference bridge was not emitted correctly.');
 if (!cardActionsJs.includes('game-action-row') || !cardActionsJs.includes('GameSheet') || !cardActionsJs.includes('LiveBarn')) throw new Error('Game-card action-row decorator was not emitted correctly.');
 if (!cardActionsJs.includes('addedNodes') || !cardActionsJs.includes('card-actions-decorated')) throw new Error('Game-card decorator is not using incremental added-node processing.');
-if (!appCss.includes('.game-action-row') || !appCss.includes('.game-meta-two')) throw new Error('Game-card action-row styles were not emitted correctly.');
+if (!appCss.includes('.game-action-row') || !appCss.includes('.game-meta-two') || !appCss.includes('[data-actions="1"]')) throw new Error('Game-card action-row styles were not emitted correctly.');
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
 for (const method of ['seasonInfo','seasonDivisions','unifiedGames','skaterStandings','goalieStandings']) {
   if (!appJs.includes(method)) throw new Error(`App bundle is not using API client method ${method}.`);
