@@ -14,25 +14,23 @@
 <section id="updateCard" class="shell" hidden>
   <div class="brand"><div class="mark">◉</div><div><b>MyHockey<em>Hub</em></b><div style="color:var(--muted);font-size:.8rem">Stable latest-version link</div></div></div>
   <div id="kicker" class="kicker">Latest update</div>
-  <h1 id="title">What’s new in V3.2.2</h1>
+  <h1 id="title">What’s new in V3.2.3</h1>
   <p id="intro" class="intro">A few useful improvements landed since your last visit.</p>
   <div class="items">
-    <div class="item"><div class="check">✓</div><div><b>Player event details</b><span>Expand recent player games to see goal and assist periods, clock times, and context.</span></div></div>
-    <div class="item"><div class="check">✓</div><div><b>GameSheet links everywhere</b><span>Game and player drill-downs keep a small direct link to the corresponding GameSheet game.</span></div></div>
-    <div class="item"><div class="check">✓</div><div><b>Appearance settings</b><span>Choose dark, light, or follow your device from Settings.</span></div></div>
-    <div class="item"><div class="check">✓</div><div><b>Clear all app data</b><span>Reset saved teams, players, venues, seasons, and appearance preferences.</span></div></div>
-    <div class="item"><div class="check">✓</div><div><b>Mobile layout polish</b><span>Better full-width drawers and safer spacing on phones.</span></div></div>
+    <div class="item"><div class="check">✓</div><div><b>Game events in hockey order</b><span>Scoring and penalties are now ordered by period, then by the countdown clock within each period.</span></div></div>
+    <div class="item"><div class="check">✓</div><div><b>PIM totals restored</b><span>Game summaries now show away/home penalty minutes, and the Penalties view shows team totals too.</span></div></div>
+    <div class="item"><div class="check">✓</div><div><b>Better penalty-side detection</b><span>Penalty minutes now use the event team when GameSheet provides it, with lineup-based fallback.</span></div></div>
   </div>
   <div id="originalNote" class="original" hidden>The page you originally used has been preserved as <b>V1</b>. This URL now always leads to the latest MyHockeyHub version, but you can go back to the original whenever you want.</div>
-  <div class="actions"><a href="index.html">Version history</a><a id="v1Link" href="v1.html" hidden>Open original V1</a><button id="continueBtn" class="primary">Continue to V3.2.2</button></div>
+  <div class="actions"><a href="index.html">Version history</a><a id="v1Link" href="v1.html" hidden>Open original V1</a><button id="continueBtn" class="primary">Continue to V3.2.3</button></div>
   <div class="note">MyHockeyHub is an independent project using publicly available GameSheet data. It is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.</div>
 </section>
 <section id="loading" class="loading"><div class="spinner"></div><b>Opening the latest MyHockeyHub…</b></section>
 </main>
 <script>
 (() => {
-  const CURRENT = '3.2.2';
-  const TARGET = 'v3.2.2.html';
+  const CURRENT = '3.2.3';
+  const TARGET = 'v3.2.3.html';
   const KEY = 'myhockeyhub.stableLastSeenVersion';
   const last = localStorage.getItem(KEY) || '';
   const legacy = !!(
