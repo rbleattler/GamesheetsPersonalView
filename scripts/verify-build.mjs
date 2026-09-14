@@ -19,8 +19,9 @@ const required = [
   'assets/site.css',
   'data/seasons.json',
   'debug/live-replay.json',
-  'versions.html',
-  'v3.6.html'
+  'FAQ.md',
+  'LICENSE',
+  'gamesheets_plus.html'
 ];
 
 await Promise.all(required.map(path => access(join(dist, path))));
@@ -40,7 +41,9 @@ if (!appHtml.includes('href="../"') || !appHtml.includes('aria-label="Home"')) t
 if (!appHtml.includes('../assets/fetch-guard.js?v=') || !appHtml.includes('../assets/foundation.js?v=') || !appHtml.includes('../assets/app.js?v=') || !appHtml.includes('../assets/router.js?v=') || !appHtml.includes('../assets/venue-links.js?v=') || !appHtml.includes('../assets/card-actions.js?v=') || !appHtml.includes('../assets/diagnostics.js?v=')) throw new Error('Versioned external app bundles are missing.');
 if (!appHtml.includes('name="myhockeyhub-build"') || !homeHtml.includes('name="myhockeyhub-build"')) throw new Error('Static build marker is missing.');
 if (!homeHtml.includes('assets/site.css?v=')) throw new Error('Home stylesheet is not cache-busted.');
-if (!homeHtml.includes('href="app/"') || !homeHtml.includes('href="versions.html"')) throw new Error('Home page navigation is incomplete.');
+if (!homeHtml.includes('href="app/"')) throw new Error('Home page app navigation is incomplete.');
+if (homeHtml.includes('versions.html')) throw new Error('Home page still links to the retired hosted version archive.');
+if (!homeHtml.includes('prototype-version-archive')) throw new Error('Home page does not reference the GitHub prototype archive.');
 if (!guardJs.includes('MyHockeyHubFetchGuard') || !guardJs.includes('AbortController') || !guardJs.includes('TimeoutError')) throw new Error('Fetch timeout guard was not emitted correctly.');
 if (!venueLinksJs.includes('livebarnVenues.v1') || !venueLinksJs.includes('gamecard') || !venueLinksJs.includes('LiveBarn venue')) throw new Error('Venue LiveBarn inference bridge was not emitted correctly.');
 if (!cardActionsJs.includes('game-action-row') || !cardActionsJs.includes('GameSheet') || !cardActionsJs.includes('LiveBarn')) throw new Error('Game-card action-row decorator was not emitted correctly.');

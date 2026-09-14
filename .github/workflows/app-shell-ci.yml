@@ -10,10 +10,9 @@ on:
       - 'scripts/**'
       - 'tests/**'
       - 'data/**'
-      - 'v3.6.html'
-      - 'versions.html'
       - 'package.json'
       - '.github/workflows/app-shell-ci.yml'
+      - '.github/workflows/pages-production.yml'
 
 permissions:
   contents: read

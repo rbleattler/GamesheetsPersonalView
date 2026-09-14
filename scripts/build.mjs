@@ -1,11 +1,11 @@
-import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'dist');
-const legacyPath = join(root, 'v3.6.html');
+const legacyPath = join(root, 'src/baseline/v3.6.html');
 
 const read = path => readFile(join(root, path), 'utf8');
 const write = async (path, content) => {
@@ -141,10 +141,8 @@ await Promise.all([
 await cp(join(root, 'data'), join(out, 'data'), { recursive: true });
 await mkdir(join(out, 'debug'), { recursive: true });
 await cp(join(root, 'tests/fixtures/live-replay.json'), join(out, 'debug/live-replay.json'));
-for (const name of await readdir(root)) {
-  if (/^v\d.*\.html$/i.test(name)) await cp(join(root, name), join(out, name));
-}
-for (const name of ['FAQ.md', 'LICENSE', 'versions.html']) await cp(join(root, name), join(out, name));
+await cp(join(root, 'FAQ.md'), join(out, 'FAQ.md'));
+await cp(join(root, 'LICENSE'), join(out, 'LICENSE'));
 
 const compatibilityRedirect = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=app/"><title>Opening MyHockeyHub…</title></head>
