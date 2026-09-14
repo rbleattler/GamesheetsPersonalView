@@ -5,7 +5,7 @@
     const span = document.createElement('span');
     span.className = `game-action-icon ${kind}`;
     span.setAttribute('aria-hidden', 'true');
-    span.textContent = kind === 'gamesheet' ? '▤' : '▶';
+    if (kind === 'livebarn') span.textContent = '▶';
     return span;
   }
 
@@ -30,7 +30,9 @@
     const gameSheet = foot.querySelector('a[href*="gamesheetstats.com/seasons/"]');
     const liveBarn = foot.querySelector('a[href*="livebarn.com"]');
     const stats = foot.querySelector('button.stats');
-    if (!gameSheet && !liveBarn && !stats) return;
+
+    // Keep plain scheduled-card footers alone unless there is a second action.
+    if (!stats && !liveBarn) return;
 
     let row = foot.querySelector(':scope > .game-action-row');
     if (!row) {
@@ -44,7 +46,6 @@
     if (gameSheet) {
       gameSheet.className = 'game-action game-action-secondary gamesheet-action';
       gameSheet.style.textDecoration = 'none';
-      gameSheet.removeAttribute('data-broadcast-watch');
       if (!gameSheet.querySelector('.game-action-icon')) setActionLabel(gameSheet, 'gamesheet', 'GameSheet');
       if (gameSheet.parentElement !== row) row.appendChild(gameSheet);
     }
@@ -66,6 +67,7 @@
       if (!wrapper.children.length && !wrapper.textContent.trim()) wrapper.remove();
     }
 
+    row.dataset.actions = String(row.children.length);
     foot.classList.toggle('game-foot-actions', row.children.length > 0);
   }
 
