@@ -4,12 +4,12 @@ const FIRESTORE_GAME_BASE='https://firestore.googleapis.com/v1/projects/gameshee
 function dataOf(body){return body&&typeof body==='object'&&'data'in body?body.data:body}
 function firstData(body){const data=dataOf(body);return Array.isArray(data)?data[0]:data}
 
-async function fetchJson(url,{fetchImpl=globalThis.fetch,cache='no-store',credentials='omit'}={}){
+async function fetchJson(url,{fetchImpl=globalThis.fetch,cache='no-store',credentials='omit',validateStatus=true}={}){
   if(typeof fetchImpl!=='function')throw new Error('Fetch is unavailable');
   const response=await fetchImpl(url,{cache,credentials});
   if(!response.ok)throw new Error(`${response.status} ${response.statusText}`.trim());
   const body=await response.json();
-  if(body&&typeof body==='object'&&'status'in body&&body.status!=='success'){
+  if(validateStatus&&body&&typeof body==='object'&&'status'in body&&body.status!=='success'){
     throw new Error(body.message||body.error||`GameSheet status ${body.status}`);
   }
   return body;
@@ -29,7 +29,7 @@ function createApiClient({fetchImpl=globalThis.fetch}={}){
     seasonInfo:seasonId=>get(seasonPath('season-info',seasonId)),
     seasonDivisions:seasonId=>get(seasonPath('season-divisions',seasonId)),
     unifiedGames:seasonId=>get(seasonPath('unified-games',seasonId)),
-    gameDetail:gameId=>get(`${API_BASE}/games/game/${encodeURIComponent(String(gameId))}/detail`),
+    gameDetail:gameId=>get(`${API_BASE}/games/game/${encodeURIComponent(String(gameId))}/detail`,{validateStatus:false}),
     skaterStandings:(seasonId,query='')=>get(appendQuery(seasonPath('players/standings',seasonId),query)),
     goalieStandings:(seasonId,query='')=>get(appendQuery(seasonPath('goalies/standings',seasonId),query)),
     firestoreGame:(seasonId,gameId)=>get(`${FIRESTORE_GAME_BASE}/${encodeURIComponent(String(seasonId))}/games/${encodeURIComponent(String(gameId))}`)
