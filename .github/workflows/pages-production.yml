@@ -56,7 +56,6 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-# Cutover note:
-# This workflow is intentionally manual until GitHub Pages Source is switched
-# from the gh-pages branch to GitHub Actions. After the first successful native
-# Pages deployment, enable push-to-main in a follow-up commit.
+# Intentionally manual for the first cutover. After Pages Source is switched
+# to GitHub Actions and the first production deploy is verified, a follow-up
+# commit can add push-to-main for automatic releases.
