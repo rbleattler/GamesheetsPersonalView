@@ -1,0 +1,55 @@
+name: Build V3.6
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/build-v3-6.yml
+      - tools/build_v3_6.py
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Build V3.6
+        run: python3 tools/build_v3_6.py
+      - name: Validate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          s=Path('v3.6.html').read_text(encoding='utf-8')
+          assert 'id="helpBtn"' in s
+          assert 'openFeedbackForm' in s
+          assert 'myhockeyhub.openSeasonFinder' in s
+          assert 'Choose a league / season to get started' in s
+          assert 'V3.6' in s
+          assert Path('.github/ISSUE_TEMPLATE/myhockeyhub-feedback.yml').exists()
+          stable=Path('gamesheets_plus.html').read_text(encoding='utf-8')
+          assert "const CURRENT = '3.6'" in stable
+          assert "const TARGET = 'v3.6.html'" in stable
+          assert 'Choose league / season' in stable
+          readme=Path('README.md').read_text(encoding='utf-8')
+          faq=Path('FAQ.md').read_text(encoding='utf-8')
+          assert 'v3.6.html' in readme and 'Help and feedback' in readme
+          assert 'What is the ? button?' in faq and 'Can I attach screenshots?' in faq
+          scripts=re.findall(r'<script>(.*?)</script>',s,re.S)
+          Path('/tmp/app.js').write_text('\n'.join(scripts),encoding='utf-8')
+          stable_scripts=re.findall(r'<script>(.*?)</script>',stable,re.S)
+          Path('/tmp/stable.js').write_text('\n'.join(stable_scripts),encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+          node --check /tmp/stable.js
+      - name: Commit V3.6
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add v3.6.html gamesheets_plus.html index.html README.md FAQ.md .github/ISSUE_TEMPLATE/myhockeyhub-feedback.yml
+          git commit -m 'feat: add onboarding help and feedback flow'
+          git push
