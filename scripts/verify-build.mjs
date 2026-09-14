@@ -13,6 +13,7 @@ const required = [
   'assets/foundation.js',
   'assets/app.js',
   'assets/router.js',
+  'assets/venue-links.js',
   'assets/diagnostics.js',
   'assets/site.css',
   'data/seasons.json',
@@ -27,16 +28,18 @@ const homeHtml = await readFile(join(dist, 'index.html'), 'utf8');
 const appJs = await readFile(join(dist, 'assets/app.js'), 'utf8');
 const guardJs = await readFile(join(dist, 'assets/fetch-guard.js'), 'utf8');
 const foundationJs = await readFile(join(dist, 'assets/foundation.js'), 'utf8');
+const venueLinksJs = await readFile(join(dist, 'assets/venue-links.js'), 'utf8');
 const diagnosticsJs = await readFile(join(dist, 'assets/diagnostics.js'), 'utf8');
 
 if (/<style[\s>]/i.test(appHtml)) throw new Error('App HTML still contains an inline <style> block.');
 if (/<script\b(?![^>]*\bsrc=)[^>]*>/i.test(appHtml)) throw new Error('App HTML still contains inline JavaScript.');
 if (!appHtml.includes('href="../"') || !appHtml.includes('aria-label="Home"')) throw new Error('App Home control is missing.');
-if (!appHtml.includes('../assets/fetch-guard.js?v=') || !appHtml.includes('../assets/foundation.js?v=') || !appHtml.includes('../assets/app.js?v=') || !appHtml.includes('../assets/router.js?v=') || !appHtml.includes('../assets/diagnostics.js?v=')) throw new Error('Versioned external app bundles are missing.');
+if (!appHtml.includes('../assets/fetch-guard.js?v=') || !appHtml.includes('../assets/foundation.js?v=') || !appHtml.includes('../assets/app.js?v=') || !appHtml.includes('../assets/router.js?v=') || !appHtml.includes('../assets/venue-links.js?v=') || !appHtml.includes('../assets/diagnostics.js?v=')) throw new Error('Versioned external app bundles are missing.');
 if (!appHtml.includes('name="myhockeyhub-build"') || !homeHtml.includes('name="myhockeyhub-build"')) throw new Error('Static build marker is missing.');
 if (!homeHtml.includes('assets/site.css?v=')) throw new Error('Home stylesheet is not cache-busted.');
 if (!homeHtml.includes('href="app/"') || !homeHtml.includes('href="versions.html"')) throw new Error('Home page navigation is incomplete.');
 if (!guardJs.includes('MyHockeyHubFetchGuard') || !guardJs.includes('AbortController') || !guardJs.includes('TimeoutError')) throw new Error('Fetch timeout guard was not emitted correctly.');
+if (!venueLinksJs.includes('livebarnVenues.v1') || !venueLinksJs.includes('gamecard') || !venueLinksJs.includes('LiveBarn venue')) throw new Error('Venue LiveBarn inference bridge was not emitted correctly.');
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
 for (const method of ['seasonInfo','seasonDivisions','unifiedGames','skaterStandings','goalieStandings']) {
   if (!appJs.includes(method)) throw new Error(`App bundle is not using API client method ${method}.`);
