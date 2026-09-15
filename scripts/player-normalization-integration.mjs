@@ -78,20 +78,30 @@ replaceFunctionContaining('Player game detail unavailable', ({ name }) => `async
 
 replaceFunctionContaining('photo:a.photoURL||""', ({ name }) => `function ${name}(e,t){return window.MyHockeyHubPlayerNormalization.normalizePlayer(e,{team:t||{},teamId:t?.id,division:t?.division||{},divisionId:t?.division?.id})}`);
 
-const playerHeader = '<th>Team</th><th>Player</th><th>#</th><th>G</th>';
-if (!code.includes(playerHeader)) throw new Error('Could not find game-stats player table header.');
-code = code.replace(playerHeader, '<th>Team</th><th>Player</th><th>Pos</th><th>#</th><th>G</th>');
-
-const playerRowPattern = /<td>\$\{([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*)\.number\|\|\2\.jersey\|\|""\)\}<\/td><td>\$\{\1\(\2\.g\?\?0\)\}<\/td>/;
-const playerRowMatch = code.match(playerRowPattern);
-if (!playerRowMatch) throw new Error('Could not find game-stats player number/stat cells.');
-const [, escapeFn, playerVar] = playerRowMatch;
-const expr = value => '${' + value + '}';
-code = code.replace(playerRowPattern,
-  `<td>${expr(`${escapeFn}(window.MyHockeyHubPlayerNormalization.positionCode(${playerVar}.position,${playerVar}.kind))`)}</td>` +
-  `<td>${expr(`${escapeFn}(${playerVar}.number||${playerVar}.jersey||"")`)}</td>` +
-  `<td>${expr(`${escapeFn}(${playerVar}.g??0)`)}</td>`
-);
+replaceFunctionContaining('No roster data reported.', ({ name, params }) => {
+  const box = params.split(',')[0] || 'e';
+  return `function ${name}(${params}){
+    const esc=value=>String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    const favs=${state}.favoritePlayersBySeason[${state}.seasonId]||{};
+    const normalize=(side,team)=>(team?.roster?.players||[]).map(raw=>{
+      const player=window.MyHockeyHubPlayerNormalization.normalizePlayer(raw,{team:team||{},teamId:team?.id,division:team?.division||{},divisionId:team?.division?.id});
+      player._side=side;player._team=team?.title||(side==='visitor'?'Away':'Home');
+      if(player.id){const id=String(player.id);${state}.playerRegistry[id]={...(${state}.playerRegistry[id]||{}),...player,id}}
+      return player
+    });
+    const rows=[...normalize('visitor',${box}.visitor),...normalize('home',${box}.home)].filter(player=>player.id&&player.name);
+    if(!rows.length)return '<div class="empty" style="padding:16px">No roster data reported.</div>';
+    const goalies=rows.filter(player=>window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind)==='G');
+    const skaters=rows.filter(player=>window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind)!=='G');
+    const follow=player=>\`<button class="star player-follow \${favs[String(player.id)]?'active':''}" data-player="\${esc(player.id)}" data-side="\${esc(player._side)}" title="\${favs[String(player.id)]?'Unfollow player':'Follow player'}">\${favs[String(player.id)]?'★':'☆'}</button>\`;
+    const playerLink=player=>\`<button class="player-link" data-player="\${esc(player.id)}">\${esc(player.name)}</button>\`;
+    const formatGaa=value=>{if(value==null||value===''||value==='—')return '—';const n=Number(value);return Number.isFinite(n)?n.toFixed(2):String(value)};
+    const formatSvPct=value=>{if(value==null||value===''||value==='—')return '—';const n=Number(value);if(!Number.isFinite(n))return String(value);const pct=n>1?n/100:n;return pct.toFixed(3)};
+    const skaterTable=skaters.length?\`<section class="player-subtable"><h4>Skaters</h4><div class="player-table-scroll"><table><thead><tr><th></th><th>Team</th><th>Player</th><th>Pos</th><th>#</th><th>G</th><th>A</th><th>PTS</th><th>PIM</th></tr></thead><tbody>\${skaters.map(player=>\`<tr><td>\${follow(player)}</td><td>\${esc(player._team)}</td><td>\${playerLink(player)}</td><td>\${esc(window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind))}</td><td>\${esc(player.number||'')}</td><td>\${esc(player.g??0)}</td><td>\${esc(player.a??0)}</td><td>\${esc(player.pts??0)}</td><td>\${esc(player.pim??0)}</td></tr>\`).join('')}</tbody></table></div></section>\`:'';
+    const goalieTable=goalies.length?\`<section class="player-subtable goalie-subtable"><h4>Goalies</h4><div class="player-table-scroll"><table><thead><tr><th></th><th>Team</th><th>Player</th><th>#</th><th>SV</th><th>GAA</th><th>SV%</th></tr></thead><tbody>\${goalies.map(player=>\`<tr><td>\${follow(player)}</td><td>\${esc(player._team)}</td><td>\${playerLink(player)}</td><td>\${esc(player.number||'')}</td><td>\${esc(player.saves??'—')}</td><td>\${esc(formatGaa(player.gaa))}</td><td>\${esc(formatSvPct(player.svPct))}</td></tr>\`).join('')}</tbody></table></div></section>\`:'';
+    return \`<div class="player-tables">\${skaterTable}\${goalieTable}</div>\`
+  }`;
+});
 
 const { code: minified } = await transform(code, {
   loader: 'js',
@@ -100,4 +110,4 @@ const { code: minified } = await transform(code, {
 });
 await writeFile(appPath, minified);
 
-console.log('Routed player standings, roster fallback, player events, recent activity, dedupe, stats-player registration, and game-stats position labels through MyHockeyHubPlayerNormalization.');
+console.log('Routed player standings, roster fallback, player events, recent activity, dedupe, stats-player registration, and split skater/goalie game tables through MyHockeyHubPlayerNormalization.');
