@@ -252,12 +252,13 @@
     for (const goalies of groups.values()) {
       const gameLength = inferGameLength(goalies, { scope });
       for (const goalie of goalies) {
-        const ga = finiteNumber(goalie.ga);
+        let ga = finiteNumber(goalie.ga);
         let sa = finiteNumber(goalie.sa);
         let saves = finiteNumber(goalie.saves);
         const minutes = durationMinutes(goalie.minutes);
         if (sa == null && saves != null && ga != null) sa = saves + ga;
         if (saves == null && sa != null && ga != null) saves = Math.max(0, sa - ga);
+        if (ga == null && sa != null && saves != null) ga = Math.max(0, sa - saves);
         if (goalie.gaa == null || goalie.gaa === '' || goalie.gaa === '—') {
           if (ga != null && minutes > 0 && gameLength > 0) goalie.gaa = ga * (gameLength / minutes);
         }
@@ -267,6 +268,7 @@
         }
         if (saves != null) goalie.saves = saves;
         if (sa != null) goalie.sa = sa;
+        if (ga != null && (goalie.ga == null || goalie.ga === '' || goalie.ga === '—')) goalie.ga = ga;
         if (gameLength > 0 && (goalie.gameLength == null || goalie.gameLength === '' || goalie.gameLength === '—')) goalie.gameLength = gameLength;
       }
     }
@@ -409,9 +411,78 @@
     }));
   }
 
+  const STAT_FIELDS = ['g', 'a', 'pts', 'pim', 'sog', 'gaa', 'svPct', 'w', 'so', 'saves', 'sa', 'ga', 'minutes', 'gameLength'];
+
+  function isUsefulValue(value) {
+    return value !== '' && value != null && value !== '—';
+  }
+
+  function fieldRichness(value) {
+    return Object.entries(value || {}).filter(([key, item]) => !key.startsWith('_') && isUsefulValue(item)).length;
+  }
+
+  function formatGaa(value) {
+    if (!isUsefulValue(value)) return '—';
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(2) : String(value);
+  }
+
+  function formatSvPct(value) {
+    if (!isUsefulValue(value)) return '—';
+    const number = Number(value);
+    if (!Number.isFinite(number)) return String(value);
+    const pct = number > 1 ? number / 100 : number;
+    return pct.toFixed(3).replace(/^0\./, '.').replace(/^-0\./, '-.');
+  }
+
+  // Season standings and per-game box scores describe different scopes of the
+  // same player. `scope: 'season'` records (standings, roster fallback used as a
+  // season proxy) are authoritative for headline stats and always win. `scope:
+  // 'game'` records (a single game's lineup/box-score entry) may only fill stat
+  // fields that are still unknown — they must never clobber real season stats,
+  // and a later season record must still be free to overwrite a game-only guess.
+  function mergePlayerRecord(existing, incoming, { scope = 'season' } = {}) {
+    const merged = { ...existing };
+    for (const [key, value] of Object.entries(incoming || {})) {
+      if (STAT_FIELDS.includes(key)) continue;
+      if (!isUsefulValue(merged[key]) && isUsefulValue(value)) merged[key] = value;
+    }
+
+    const hasSeasonStats = !!existing?._hasSeasonStats;
+    if (scope === 'season') {
+      for (const key of STAT_FIELDS) {
+        if (isUsefulValue(incoming?.[key])) merged[key] = incoming[key];
+      }
+      merged._hasSeasonStats = true;
+    } else {
+      merged._lastGameStats = {};
+      for (const key of STAT_FIELDS) {
+        if (isUsefulValue(incoming?.[key])) merged._lastGameStats[key] = incoming[key];
+      }
+      if (!hasSeasonStats) {
+        for (const key of STAT_FIELDS) {
+          if (!isUsefulValue(merged[key]) && isUsefulValue(incoming?.[key])) merged[key] = incoming[key];
+        }
+      }
+      merged._hasSeasonStats = hasSeasonStats;
+    }
+
+    const preferredPosition = canonicalPosition(incoming?.position, incoming?.kind);
+    const existingPosition = canonicalPosition(existing?.position, existing?.kind);
+    const specificPosition = position => ['Goalie', 'Defense', 'Forward'].includes(position);
+    merged.position = specificPosition(existingPosition)
+      ? existingPosition
+      : specificPosition(preferredPosition)
+        ? preferredPosition
+        : existingPosition || preferredPosition || canonicalPosition('', merged.kind);
+    if (merged.position === 'Goalie') merged.kind = 'goalie';
+
+    return merged;
+  }
+
   function dedupePlayers(players) {
-    const useful = value => value !== '' && value != null && value !== '—';
-    const richness = value => Object.entries(value || {}).filter(([key, item]) => !key.startsWith('_') && useful(item)).length;
+    const useful = isUsefulValue;
+    const richness = fieldRichness;
     const specificPosition = position => ['Goalie', 'Defense', 'Forward'].includes(position);
     const merge = (preferred, fallback) => {
       const merged = { ...preferred };
@@ -466,6 +537,9 @@
     playerEvents,
     playerGameActivity,
     teamRosterFromGame,
-    dedupePlayers
+    dedupePlayers,
+    mergePlayerRecord,
+    formatGaa,
+    formatSvPct
   };
 })();

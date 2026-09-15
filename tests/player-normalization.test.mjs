@@ -148,6 +148,106 @@ test('recent-game activity can preserve a known goalie classification when game 
   assert.equal(activity.sv,22);
 });
 
+test('goalie rate derivation preserves an explicit valid GameSheet value',()=>{
+  const goalie=normalize.normalizeStandingPlayer({
+    player:{id:'60',firstName:'Explicit',lastName:'Goalie',position:'Goalie'},
+    stats:{sa:30,ga:3,min:'60:00',gaa:2.5,savePct:.9}
+  },{kind:'goalie',divisionId:'12'});
+  assert.equal(goalie.gaa,2.5);
+  assert.equal(goalie.svPct,.9);
+});
+
+test('goalie rate derivation handles the zero-shot edge case without dividing by zero',()=>{
+  const rows=normalize.completeGoalieMetrics([
+    {id:'61',name:'Idle',kind:'goalie',position:'Goalie',teamId:'V',divisionId:'12',ga:0,sa:0,saves:0,minutes:5,gaa:'—',svPct:'—'}
+  ],{scope:'game'});
+  assert.equal(rows[0].svPct,'—');
+});
+
+test('goalie rate derivation reports missing data as em dash when components are absent',()=>{
+  const rows=normalize.completeGoalieMetrics([
+    {id:'62',name:'NoData',kind:'goalie',position:'Goalie',teamId:'V',divisionId:'12',ga:'—',sa:'—',saves:'—',minutes:'—',gaa:'—',svPct:'—'}
+  ],{scope:'game'});
+  assert.equal(rows[0].gaa,'—');
+  assert.equal(rows[0].svPct,'—');
+});
+
+test('split-goalie game: each goalie derives GAA/SV% from only their own minutes and shots',()=>{
+  const rows=normalize.completeGoalieMetrics([
+    {id:'70',name:'Starter',kind:'goalie',position:'Goalie',teamId:'V',divisionId:'9',ga:1,sa:10,minutes:'20:00',gaa:'—',svPct:'—'},
+    {id:'71',name:'Reliever',kind:'goalie',position:'Goalie',teamId:'V',divisionId:'9',ga:2,sa:15,minutes:'40:00',gaa:'—',svPct:'—'}
+  ],{scope:'game'});
+  const starter=rows.find(r=>r.id==='70'),reliever=rows.find(r=>r.id==='71');
+  assert.equal(starter.saves,9);
+  assert.ok(Math.abs(starter.svPct-9/10)<1e-9);
+  assert.equal(reliever.saves,13);
+  assert.ok(Math.abs(reliever.svPct-13/15)<1e-9);
+  // Standard game length is inferred from combined minutes (60), so each
+  // goalie's GAA reflects their own goals-against prorated to that length.
+  assert.ok(Math.abs(starter.gaa-3)<1e-9);
+  assert.ok(Math.abs(reliever.gaa-3)<1e-9);
+});
+
+test('game player table symptom: one goalie missing SV%, another missing GAA both derive fully',()=>{
+  const rows=normalize.completeGoalieMetrics([
+    {id:'80',name:'HasGaaOnly',kind:'goalie',position:'Goalie',teamId:'V',divisionId:'9',ga:2,sa:20,saves:'—',minutes:'45:00',gaa:2.67,svPct:'—'},
+    {id:'81',name:'HasSvPctOnly',kind:'goalie',position:'Goalie',teamId:'H',divisionId:'9',ga:'—',sa:18,saves:16,minutes:'45:00',gaa:'—',svPct:.889}
+  ],{scope:'game'});
+  const a=rows.find(r=>r.id==='80'),b=rows.find(r=>r.id==='81');
+  assert.notEqual(a.svPct,'—');
+  assert.ok(Math.abs(a.svPct-18/20)<1e-9);
+  assert.notEqual(b.gaa,'—');
+});
+
+test('formatGaa and formatSvPct render sensible, bounded precision',()=>{
+  assert.equal(normalize.formatGaa(1.59375),'1.59');
+  assert.equal(normalize.formatGaa('—'),'—');
+  assert.equal(normalize.formatSvPct(.9469135),'.947');
+  assert.equal(normalize.formatSvPct(94.69135),'.947');
+  assert.equal(normalize.formatSvPct('—'),'—');
+});
+
+test('mergePlayerRecord: season stats are authoritative and game stats cannot overwrite them',()=>{
+  const season=normalize.mergePlayerRecord({},{id:'90',name:'Player Ninety',g:10,a:12,pts:22,pim:4},{scope:'season'});
+  assert.equal(season._hasSeasonStats,true);
+  const afterGame=normalize.mergePlayerRecord(season,{id:'90',name:'Player Ninety',g:1,a:0,pts:1,pim:2},{scope:'game'});
+  assert.equal(afterGame.g,10);
+  assert.equal(afterGame.a,12);
+  assert.equal(afterGame.pts,22);
+  assert.equal(afterGame.pim,4);
+  assert.deepEqual(afterGame._lastGameStats.g,1);
+});
+
+test('mergePlayerRecord: a later season record can still overwrite an earlier game-only guess',()=>{
+  const fromGame=normalize.mergePlayerRecord({},{id:'91',name:'Player NinetyOne',g:1,a:0,pts:1,pim:2},{scope:'game'});
+  assert.equal(fromGame._hasSeasonStats,false);
+  assert.equal(fromGame.g,1);
+  const fromSeason=normalize.mergePlayerRecord(fromGame,{id:'91',name:'Player NinetyOne',g:14,a:9,pts:23,pim:6},{scope:'season'});
+  assert.equal(fromSeason.g,14);
+  assert.equal(fromSeason.pts,23);
+  assert.equal(fromSeason._hasSeasonStats,true);
+});
+
+test('mergePlayerRecord: a season merge does not disturb the tracked last-game snapshot',()=>{
+  const fromGame=normalize.mergePlayerRecord({},{id:'93',name:'Player NinetyThree',g:1,a:1,pts:2,pim:0},{scope:'game'});
+  assert.deepEqual(fromGame._lastGameStats,{g:1,a:1,pts:2,pim:0});
+  const fromSeason=normalize.mergePlayerRecord(fromGame,{id:'93',name:'Player NinetyThree',g:20,a:15,pts:35,pim:8},{scope:'season'});
+  assert.deepEqual(fromSeason._lastGameStats,{g:1,a:1,pts:2,pim:0});
+  assert.equal(fromSeason.g,20);
+});
+
+test('mergePlayerRecord: identity metadata fills gaps regardless of scope',()=>{
+  const merged=normalize.mergePlayerRecord(
+    {id:'92',name:'Player NinetyTwo',teamId:'',teamTitle:'',position:''},
+    {id:'92',name:'Player NinetyTwo',teamId:'T1',teamTitle:'Team One',position:'defence',g:1,a:0},
+    {scope:'game'}
+  );
+  assert.equal(merged.teamId,'T1');
+  assert.equal(merged.teamTitle,'Team One');
+  assert.equal(merged.position,'Defense');
+  assert.equal(merged.g,1);
+});
+
 test('dedupe merges complementary position metadata instead of dropping it',()=>{
   const rows=normalize.dedupePlayers([
     {id:'10',name:'Alex Visitor',teamTitle:'Visitors',number:'10',position:'',g:4,a:2,pts:6,kind:'skater'},

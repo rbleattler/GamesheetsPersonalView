@@ -94,29 +94,88 @@ const visibilityHook = "document.addEventListener('visibilitychange',()=>{if(!do
 if (!appJs.includes(visibilityHook)) throw new Error('Expected V3.6 live-refresh visibility hook was not found.');
 appJs = appJs.replace(visibilityHook, '');
 
+const registerPlayerMarker = "function registerPlayer(p){if(!p?.id)return p;const id=String(p.id),old=state.playerRegistry[id]||{};state.playerRegistry[id]={...old,...p,id};return state.playerRegistry[id]}";
+if (!appJs.includes(registerPlayerMarker)) throw new Error('Expected V3.6 registerPlayer implementation was not found.');
+appJs = appJs.replace(registerPlayerMarker, "function registerPlayer(p,scope='season'){if(!p?.id)return p;const id=String(p.id),old=state.playerRegistry[id]||{};const merged=window.MyHockeyHubPlayerNormalization.mergePlayerRecord(old,p,{scope});state.playerRegistry[id]=merged;return merged}");
+
+const inlinePlayerLinkRegisterMarker = 'registerPlayer(statsPlayerRecord(p,team));';
+if (!appJs.includes(inlinePlayerLinkRegisterMarker)) throw new Error('Expected V3.6 inlinePlayerLink registration was not found.');
+appJs = appJs.replace(inlinePlayerLinkRegisterMarker, "registerPlayer(statsPlayerRecord(p,team),'game');");
+
+const renderStatsRegisterMarker = "for(const side of ['visitor','home'])for(const p of (b?.[side]?.roster?.players||[]))registerPlayer(statsPlayerRecord(p,b[side]));";
+if (!appJs.includes(renderStatsRegisterMarker)) throw new Error('Expected V3.6 renderStats registration was not found.');
+appJs = appJs.replace(renderStatsRegisterMarker, "for(const side of ['visitor','home'])for(const p of (b?.[side]?.roster?.players||[]))registerPlayer(statsPlayerRecord(p,b[side]),'game');");
+
+const playerCardGaaMarker = "esc(p.gaa??'—')";
+if (!appJs.includes(playerCardGaaMarker)) throw new Error('Expected V3.6 player-card GAA formatting was not found.');
+appJs = appJs.replace(playerCardGaaMarker, "esc(window.MyHockeyHubPlayerNormalization.formatGaa(p.gaa))");
+
+const playerCardSvPctMarker = "esc(p.svPct??'—')";
+if (!appJs.includes(playerCardSvPctMarker)) throw new Error('Expected V3.6 player-card SV% formatting was not found.');
+appJs = appJs.replace(playerCardSvPctMarker, "esc(window.MyHockeyHubPlayerNormalization.formatSvPct(p.svPct))");
+
+const playerDetailGaaMarker = "sbox('GAA',p.gaa??'—')";
+if (!appJs.includes(playerDetailGaaMarker)) throw new Error('Expected V3.6 player-detail GAA formatting was not found.');
+appJs = appJs.replace(playerDetailGaaMarker, "sbox('GAA',window.MyHockeyHubPlayerNormalization.formatGaa(p.gaa))");
+
+const playerDetailSvPctMarker = "sbox('SV%',p.svPct??'—')";
+if (!appJs.includes(playerDetailSvPctMarker)) throw new Error('Expected V3.6 player-detail SV% formatting was not found.');
+appJs = appJs.replace(playerDetailSvPctMarker, "sbox('SV%',window.MyHockeyHubPlayerNormalization.formatSvPct(p.svPct))");
+
+const elsMarker = "drawerBody:$('drawerBody'),closeDrawer:$('closeDrawer')};";
+if (!appJs.includes(elsMarker)) throw new Error('Expected V3.6 els object was not found.');
+appJs = appJs.replace(elsMarker, "drawerBody:$('drawerBody'),closeDrawer:$('closeDrawer'),backDrawer:$('backDrawer')};");
+
+const drawerNavWiringMarker = "document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>setView(b.dataset.view));$('#helpBtn').onclick=openHelp;$('#menuBtn').onclick=openSettings;bindTeamDelegates();";
+if (!appJs.includes(drawerNavWiringMarker)) throw new Error('Expected V3.6 final wiring block was not found.');
+appJs = appJs.replace(drawerNavWiringMarker, `const __mhCloseDrawerOriginal=closeDrawer;
+const __mhNav=window.MyHockeyHubDrawerNavigation.createDrawerNavigation({
+  isOpen:()=>els.drawer.classList.contains('open'),
+  captureExtra:()=>{const activeTabBtn=els.drawerBody.querySelector('.tabs .tab.active');return{activeTab:activeTabBtn?activeTabBtn.dataset.tab:null,scrollTop:els.drawer.scrollTop}},
+  restoreExtra:extra=>{if(!extra)return;if(extra.activeTab){const tabButton=els.drawerBody.querySelector('.tabs .tab[data-tab="'+extra.activeTab+'"]');if(tabButton&&!tabButton.classList.contains('active'))tabButton.click()}els.drawer.scrollTop=extra.scrollTop||0},
+  onClose:()=>{__mhCloseDrawerOriginal();__mhSyncBackButton()}
+});
+function __mhSyncBackButton(){if(!els.backDrawer)return;const open=els.drawer.classList.contains('open');els.backDrawer.hidden=!open;els.backDrawer.title=__mhNav.depth()?'Back':'Back to app';els.backDrawer.setAttribute('aria-label',els.backDrawer.title)}
+function __mhWrapDrawerNav(key,fn){return function(...args){const result=__mhNav.go(key,()=>fn.apply(this,args));__mhSyncBackButton();return result}}
+openStats=__mhWrapDrawerNav('gameStats',openStats);
+openGameDetails=__mhWrapDrawerNav('gameDetails',openGameDetails);
+openPlayerDetail=__mhWrapDrawerNav('playerDetail',openPlayerDetail);
+openPlayerPicker=__mhWrapDrawerNav('addPlayers',openPlayerPicker);
+openManageTeams=__mhWrapDrawerNav('manageTeams',openManageTeams);
+openSettings=__mhWrapDrawerNav('settings',openSettings);
+openHelp=__mhWrapDrawerNav('help',openHelp);
+openFeedbackForm=__mhWrapDrawerNav('feedback',openFeedbackForm);
+openSeasonFinder=__mhWrapDrawerNav('seasonFinder',openSeasonFinder);
+closeDrawer=function(){__mhNav.reset();__mhCloseDrawerOriginal();__mhSyncBackButton()};
+if(els.backDrawer)els.backDrawer.onclick=()=>{__mhNav.back();__mhSyncBackButton()};
+window.MyHockeyHubDrawerNav={back:()=>__mhNav.back(),depth:()=>__mhNav.depth(),peek:()=>__mhNav.peek(),reset:()=>__mhNav.reset()};
+${drawerNavWiringMarker}`);
+
 const debugMarker = "const hasSavedSeason=!!(localStorage.getItem('gsv3.seasonId')";
 if (!appJs.includes(debugMarker)) throw new Error('Expected V3.6 startup marker was not found.');
 appJs = appJs.replace(debugMarker, `let debugReplayOriginalGames=null;window.MyHockeyHubDebug={snapshot:()=>{const broadcasts=state.games.map(g=>g?._broadcast).filter(Boolean);return{version:'4.0.0-beta.0',view:state.view,seasonId:String(state.seasonId||''),gameCount:state.games.length,liveCount:visibleLive().length,polling:!!state.polling,lastLive:state.lastLive?state.lastLive.toISOString():null,lastError:!!state.lastError,broadcastActionable:broadcasts.filter(b=>b.available).length,broadcastSuppressed:broadcasts.reduce((n,b)=>n+(b.suppressed?.length||0),0),normalizationParity:window.MyHockeyHubNormalizationParity||null,replayActive:!!debugReplayOriginalGames}},refreshLive:()=>pollLive(),applyReplay:snapshot=>{if(!snapshot)return;liveRefreshService?.stop();if(!debugReplayOriginalGames)debugReplayOriginalGames=state.games;const g=window.MyHockeyHubFoundation.normalize.game({...snapshot,timeStampZulu:new Date().toISOString()});state.games=[g,...debugReplayOriginalGames.filter(x=>String(x.gameId)!==String(g.gameId))];buildTeams();state.view='schedule';state.schedule={division:'',team:'',rink:'',when:'all',search:'SIM-1',myTeam:false,faves:false,scheduled:false};render()},exitReplay:()=>{if(!debugReplayOriginalGames)return;state.games=debugReplayOriginalGames;debugReplayOriginalGames=null;buildTeams();render();startPolling()}};${debugMarker}`);
 
-const [routerSource, foundationSource, diagnosticsSource, siteCss, homeHtml] = await Promise.all([
+const [routerSource, foundationSource, diagnosticsSource, drawerNavigationSource, siteCss, homeHtml] = await Promise.all([
   read('src/app/router.js'),
   read('src/app/foundation.js'),
   read('src/app/diagnostics.js'),
+  read('src/app/drawer-navigation.js'),
   read('src/site.css'),
   read('src/home.html')
 ]);
-const [{ code: minCss }, { code: minJs }, { code: minRouter }, { code: minFoundation }, { code: minDiagnostics }, { code: minSiteCss }] = await Promise.all([
+const [{ code: minCss }, { code: minJs }, { code: minRouter }, { code: minFoundation }, { code: minDiagnostics }, { code: minDrawerNavigation }, { code: minSiteCss }] = await Promise.all([
   transform(appCss, { loader: 'css', minify: true }),
   transform(appJs, { loader: 'js', minify: true, target: 'es2022' }),
   transform(routerSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(foundationSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(diagnosticsSource, { loader: 'js', minify: true, target: 'es2022' }),
+  transform(drawerNavigationSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(siteCss, { loader: 'css', minify: true })
 ]);
 
 let appHtml = legacy
   .replace(styleMatch[0], '<link rel="stylesheet" href="../assets/app.css">')
-  .replace(scriptMatch[0], '<script src="../assets/foundation.js" defer></script>\n<script src="../assets/app.js" defer></script>\n<script src="../assets/router.js" defer></script>\n<script src="../assets/diagnostics.js" defer></script>')
+  .replace(scriptMatch[0], '<script src="../assets/foundation.js" defer></script>\n<script src="../assets/drawer-navigation.js" defer></script>\n<script src="../assets/app.js" defer></script>\n<script src="../assets/router.js" defer></script>\n<script src="../assets/diagnostics.js" defer></script>')
   .replace('<title>MyHockeyHub — V3.6</title>', '<title>MyHockeyHub</title>');
 
 const topActions = '<div class="top-actions"><span class="version">V3.6</span>';
@@ -131,6 +190,7 @@ await Promise.all([
   write('app/index.html', appHtml),
   write('assets/app.css', minCss),
   write('assets/foundation.js', minFoundation),
+  write('assets/drawer-navigation.js', minDrawerNavigation),
   write('assets/app.js', minJs),
   write('assets/router.js', minRouter),
   write('assets/diagnostics.js', minDiagnostics),

@@ -77,6 +77,7 @@ await Promise.all([
 const assetPaths = [
   'assets/app.css',
   'assets/foundation.js',
+  'assets/drawer-navigation.js',
   'assets/game-normalization.js',
   'assets/player-normalization.js',
   'assets/app.js',
@@ -121,7 +122,7 @@ appHtml = appHtml.replace(
   '<script src="../assets/venue-links.js" defer></script>\n<script src="../assets/card-actions.js" defer></script>\n<script src="../assets/diagnostics.js" defer></script>'
 );
 appHtml = appHtml.replace(
-  /\.\.\/assets\/(?:app\.css|foundation\.js|game-normalization\.js|player-normalization\.js|app\.js|router\.js|venue-links\.js|card-actions\.js|diagnostics\.js|fetch-guard\.js)(?:\?v=[a-f0-9]+)?/g,
+  /\.\.\/assets\/(?:app\.css|foundation\.js|drawer-navigation\.js|game-normalization\.js|player-normalization\.js|app\.js|router\.js|venue-links\.js|card-actions\.js|diagnostics\.js|fetch-guard\.js)(?:\?v=[a-f0-9]+)?/g,
   match => versionAsset(match)
 );
 await writeDist('app/index.html', appHtml);
