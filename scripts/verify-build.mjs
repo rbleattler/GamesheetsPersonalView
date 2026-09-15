@@ -117,6 +117,10 @@ for (const glyph of ['fa-calendar-days','fa-users','fa-chart-line','fa-trash-can
   if (!appJs.includes(glyph)) throw new Error(`My Teams card action row is missing the ${glyph} icon.`);
 }
 if (!appJs.includes('scheduleLoadMore') || !appJs.includes('data-schedule-more') || !appJs.includes('IntersectionObserver') || !appJs.includes('700px 0px')) throw new Error('Schedule progressive rendering was not emitted correctly.');
+if (!appJs.includes('timeline timeline-integrated')) throw new Error('Game-stats timeline is not using the integrated layout.');
+if (!appJs.includes('data-period-toggle')) throw new Error('Period headers are not collapsible.');
+if (appJs.includes('\ud83d\udea8') || appJs.includes('\u26a0\ufe0f')) throw new Error('Timeline is still using emoji event icons.');
+if (!appCss.includes('.fa-hockey-puck') || !appCss.includes('.fa-stopwatch')) throw new Error('Timeline event glyphs were not emitted.');
 if (appJs.includes('version:"3.6"') || appJs.includes('version:"4.0.0-beta.0"')) throw new Error('Generated app still reports a pre-V4 version.');
 for (const method of ['seasonInfo','seasonDivisions','unifiedGames','skaterStandings','goalieStandings','firestoreGame']) {
   if (!appJs.includes(method)) throw new Error(`App bundle is not using API client method ${method}.`);

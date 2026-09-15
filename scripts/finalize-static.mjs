@@ -24,7 +24,10 @@ const faIcons = {
   'arrow-left': 'arrow-left.svg',
   xmark: 'xmark.svg',
   'chart-line': 'chart-line.svg',
-  'trash-can': 'trash-can.svg'
+  'trash-can': 'trash-can.svg',
+  'hockey-puck': 'hockey-puck.svg',
+  stopwatch: 'stopwatch.svg',
+  'chevron-down': 'chevron-down.svg'
 };
 
 const faEntries = await Promise.all(Object.entries(faIcons).map(async ([name, file]) => {
@@ -69,7 +72,39 @@ const faCssSource = [
   '.team-dashboard-card{padding-bottom:14px}.team-badge{white-space:nowrap;display:inline-flex;align-items:center;gap:0}.team-badge-remove{display:none;align-items:center;justify-content:center;border:0;background:transparent;color:var(--red);padding:4px 2px 4px 9px;margin-left:7px;border-left:1px solid rgba(255,65,65,.35);cursor:pointer;line-height:1}.team-badge-remove .fa-icon{width:.85em;height:.85em}.team-statstrip{margin-top:14px;padding-top:12px;border-top:1px solid rgba(120,150,180,.16)}.team-statstrip .stat b{font-size:.94rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}.team-card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}.team-action-btn{display:inline-flex;align-items:center;gap:7px}.team-remove-btn{margin-left:auto}',
   '@media(max-width:560px){.team-statstrip{grid-template-columns:repeat(3,1fr);row-gap:10px}.team-statstrip .stat:nth-child(4){border-left:0}.team-card-actions{gap:6px}.team-action-btn.team-remove-btn{display:none}.team-badge-remove{display:inline-flex}}',
   '.my-team-switcher-select{display:none}.my-team-switcher-pills{display:flex;gap:7px;overflow:auto;flex:1 1 auto}',
-  '@media(max-width:560px){.my-team-switcher-select{display:block;flex:1 1 auto;min-height:44px;background:#0c1826;color:var(--text);border:1px solid #30455e;border-radius:12px;padding:9px 12px;font-weight:750}.my-team-switcher-pills{display:none}}'
+  '@media(max-width:560px){.my-team-switcher-select{display:block;flex:1 1 auto;min-height:44px;background:#0c1826;color:var(--text);border:1px solid #30455e;border-radius:12px;padding:9px 12px;font-weight:750}.my-team-switcher-pills{display:none}}',
+  '.timeline-integrated{display:block;border:1px solid #243e58;border-radius:14px;overflow:hidden;background:#0d1a28}',
+  '.timeline-integrated .period-block{border:0;border-radius:0;background:none;overflow:visible}',
+  '.timeline-integrated .period-block+.period-block{border-top:1px solid #23394f}',
+  '.timeline-integrated .period-head{position:sticky;top:0;z-index:3;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto 13px;align-items:center;gap:10px;padding:11px 12px;background:#0f1f31;border:0;color:#cde4f9;font-size:.83rem;font-weight:850;text-align:left;cursor:pointer;box-shadow:0 1px 0 #23394f}',
+  '.timeline-integrated .pscore{font-size:.75rem;font-weight:800;color:#9fb8d0;font-variant-numeric:tabular-nums}',
+  '.timeline-integrated .pchev{font-size:13px;color:#7d96ae;transition:transform .18s ease}',
+  '.timeline-integrated .period-block.collapsed .pchev{transform:rotate(-90deg)}',
+  '.timeline-integrated .period-block.collapsed .timeline-items{display:none}',
+  '.timeline-integrated .timeline-items{display:block}',
+  '.timeline-integrated .timeline-event{display:grid;grid-template-columns:42px 17px minmax(0,1fr) auto 11px;gap:9px;align-items:start;padding:9px 12px;border-top:1px solid rgba(120,150,180,.1)}',
+  '.timeline-integrated .timeline-event:first-child{border-top:0}',
+  '.timeline-integrated .timeline-time{color:#7d96ae;font-family:ui-monospace,Menlo,monospace;font-size:.7rem;letter-spacing:-.02em;padding-top:4px;font-variant-numeric:tabular-nums}',
+  '.timeline-integrated .ev-icon{width:17px;height:17px;display:grid;place-items:center;padding-top:2px}',
+  '.timeline-integrated .ev-icon .fa-icon{font-size:13px}',
+  '.timeline-integrated .ev-goal{color:var(--green)}',
+  '.timeline-integrated .ev-pen{color:var(--amber)}',
+  '.timeline-integrated .ev-main{min-width:0}',
+  '.timeline-integrated .ev-primary{display:flex;align-items:baseline;gap:7px;min-width:0}',
+  '.timeline-integrated .ev-team{flex:0 0 auto;font-family:ui-monospace,Menlo,monospace;font-size:.62rem;font-weight:800;letter-spacing:.09em;color:#8ba4bd}',
+  '.timeline-integrated .ev-name{min-width:0;font-weight:830;font-size:.93rem;letter-spacing:-.01em}',
+  '.timeline-integrated .ev-name .player-link{font:inherit;letter-spacing:inherit}',
+  '.timeline-integrated .ev-sec{color:#a4b8cd;font-size:.76rem;line-height:1.3;margin-top:2px}',
+  '.timeline-integrated .ev-lbl{display:inline-block;font-size:.58rem;font-weight:800;letter-spacing:.06em;color:#6f8aa5;border:1px solid #2c445e;border-radius:4px;padding:0 3px;margin-right:4px;vertical-align:1px}',
+  '.timeline-integrated .ev-after{font-variant-numeric:tabular-nums;font-size:.74rem;font-weight:800;color:#c3d6e8;background:#16273b;border-radius:6px;padding:3px 6px;margin-top:1px;white-space:nowrap}',
+  '.timeline-integrated .ev-after.ev-pim{color:#ffd487;background:rgba(255,190,63,.1)}',
+  '.timeline-integrated .timeline-chevron{font-size:11px;color:#5f7690;transform:rotate(-90deg);margin-top:5px;transition:transform .15s ease}',
+  '.timeline-integrated .timeline-event[aria-expanded="true"] .timeline-chevron{transform:rotate(0deg)}',
+  '.timeline-integrated .timeline-event.followed-event{background:rgba(255,190,63,.07);box-shadow:inset 3px 0 0 var(--amber)}',
+  'html[data-theme="light"] .timeline-integrated{background:#fff;border-color:#c2d3e1}',
+  'html[data-theme="light"] .timeline-integrated .period-head{background:#e8f2fb;color:#24435f;box-shadow:0 1px 0 #d3e2ee}',
+  'html[data-theme="light"] .timeline-integrated .period-block+.period-block{border-top-color:#d3e2ee}',
+  'html[data-theme="light"] .timeline-integrated .ev-after{color:#24435f;background:#eef4f9}'
 ].join('\n');
 
 const [guardSource, venueLinksSource, cardActionsSource, cardActionsCss, gameNormalizationSource, playerNormalizationSource, teamNormalizationSource] = await Promise.all([

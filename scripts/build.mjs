@@ -143,6 +143,60 @@ const eventDetailGameSheetLinkCount = appJs.split(eventDetailGameSheetLinkMarker
 if (eventDetailGameSheetLinkCount !== 2) throw new Error(`Expected exactly 2 occurrences of the expanded-event GameSheet link, found ${eventDetailGameSheetLinkCount}.`);
 appJs = appJs.split(eventDetailGameSheetLinkMarker).join('');
 
+const eventSecondaryMarker = "function eventSecondary(e){if(e._type==='goal'){const a=[e.assist1By,e.assist2By].filter(x=>x&&(x.firstName||x.lastName||x.title));return a.length?`A: ${a.map(p=>pname(p)).join(', ')}`:'Unassisted'}const d=e.penaltyType?.duration?` · ${e.penaltyType.duration} min`:'';return`${e.penaltyType?.title||'Penalty'}${d}`}";
+if (!appJs.includes(eventSecondaryMarker)) throw new Error('Expected V3.6 event-secondary helper was not found.');
+const integratedTimelineHelpers = `function eventTeamLabel(side){
+  const t=state._statsBox?.[side];
+  if(!t)return'';
+  const c=teamColor(t);
+  return \`<span class="ev-team"\${c?\` style="color:\${escAttr(c)}"\`:''}>\${esc(abbr(t))}</span>\`
+}
+function eventSecondaryHtml(e){
+  if(e._type==='goal'){
+    const a=[e.assist1By,e.assist2By].filter(x=>x&&(x.firstName||x.lastName||x.title));
+    return a.length?\`<span class="ev-lbl">A</span> \${esc(a.map(p=>pname(p)).join(', '))}\`:'Unassisted'
+  }
+  const d=e.penaltyType?.duration;
+  return esc(d?(e.penaltyType?.title||'Penalty'):eventSecondary(e))
+}`;
+appJs = appJs.replace(eventSecondaryMarker, `${eventSecondaryMarker}\n${integratedTimelineHelpers}`);
+
+const legacyTimelineStart = "function timelineHtml(b,g,mode='all'){let items=timelineEvents(b);";
+const legacyTimelineEmoji = "icon=e._type==='goal'?'🚨':'⚠️';";
+const timelineEndMarker = '\nfunction boxScoreHtml';
+const timelineStartIndex = appJs.indexOf(legacyTimelineStart);
+const timelineEndIndex = appJs.indexOf(timelineEndMarker, timelineStartIndex);
+if (timelineStartIndex < 0 || timelineEndIndex < 0 || !appJs.includes(legacyTimelineEmoji)) throw new Error('Expected V3.6 emoji timeline implementation was not found.');
+const integratedTimelineHtml = `function timelineHtml(b,g,mode='all'){
+  let items=timelineEvents(b);
+  if(mode==='goal')items=items.filter(e=>e._type==='goal');
+  if(mode==='penalty')items=items.filter(e=>e._type==='penalty');
+  if(!items.length)return'<div class="empty" style="padding:18px">No events reported.</div>';
+  const groups=new Map();
+  for(const e of items){const p=e.periodLabel||e.period||'';if(!groups.has(p))groups.set(p,[]);groups.get(p).push(e)}
+  let idx=0;
+  return \`<div class="timeline timeline-integrated">\${[...groups.entries()].map(([p,events],gi)=>{
+    const pid=\`per-\${mode}-\${gi}\`,
+      meta=mode==='penalty'?\`\${events.length} \${events.length===1?'event':'events'}\`:esc(periodGoalScore(b,p));
+    return \`<section class="period-block" data-period="\${escAttr(p)}"><button class="period-head" type="button" aria-expanded="true" aria-controls="\${pid}" data-period-toggle><span>\${esc(periodLabelNice(p))}</span><span class="pscore">\${meta}</span><span class="pchev fa-icon fa-chevron-down" aria-hidden="true"></span></button><div class="timeline-items" id="\${pid}">\${events.map(e=>{
+      const id=\`evt-\${mode}-\${idx++}\`,
+        isGoal=e._type==='goal',
+        player=isGoal?e.goalScorer:e.committedBy,
+        icon=isGoal?'fa-hockey-puck':'fa-stopwatch',
+        chip=isGoal
+          ?(e.scoreAfter?\`<span class="ev-after">\${esc(e.scoreAfter)}</span>\`:'')
+          :(e.penaltyType?.duration?\`<span class="ev-after ev-pim">\${esc(e.penaltyType.duration)}</span>\`:'');
+      return \`<div class="timeline-event" role="button" tabindex="0" aria-expanded="false" data-target="\${id}"><div class="timeline-time">\${esc(e.time||'')}</div><div class="ev-icon \${isGoal?'ev-goal':'ev-pen'}"><span class="fa-icon \${icon}" aria-hidden="true"></span></div><div class="ev-main"><div class="ev-primary">\${eventTeamLabel(e.teamSide)}<span class="ev-name">\${inlinePlayerLink(player,e.teamSide)}</span></div><div class="ev-sec">\${eventSecondaryHtml(e)}</div></div>\${chip}<span class="timeline-chevron fa-icon fa-chevron-down" aria-hidden="true"></span></div><div id="\${id}" class="timeline-detail" hidden>\${eventDetailHtml(e,g)}</div>\`
+    }).join('')}</div></section>\`
+  }).join('')}</div>\`
+}`;
+appJs = `${appJs.slice(0, timelineStartIndex)}${integratedTimelineHtml}${appJs.slice(timelineEndIndex)}`;
+
+const wireTimelineMarker = "function wireTimeline(root){root.querySelectorAll('.timeline-event').forEach(row=>{const toggle=()=>{const panel=document.getElementById(row.dataset.target),open=row.getAttribute('aria-expanded')==='true';row.setAttribute('aria-expanded',String(!open));if(panel)panel.hidden=open};row.onclick=e=>{if(e.target.closest('.player-link,a,button'))return;toggle()};row.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&!e.target.closest('.player-link,a,button')){e.preventDefault();toggle()}}})}";
+if (!appJs.includes(wireTimelineMarker)) throw new Error('Expected V3.6 timeline event wiring was not found.');
+const integratedTimelineWire = "function wireTimeline(root){root.querySelectorAll('[data-period-toggle]').forEach(btn=>{btn.onclick=()=>{const block=btn.closest('.period-block'),collapsed=block.classList.toggle('collapsed');btn.setAttribute('aria-expanded',String(!collapsed))}});root.querySelectorAll('.timeline-event').forEach(row=>{const toggle=()=>{const panel=document.getElementById(row.dataset.target),open=row.getAttribute('aria-expanded')==='true';row.setAttribute('aria-expanded',String(!open));if(panel)panel.hidden=open};row.onclick=e=>{if(e.target.closest('.player-link,a,button'))return;toggle()};row.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&!e.target.closest('.player-link,a,button')){e.preventDefault();toggle()}}})}";
+appJs = appJs.replace(wireTimelineMarker, integratedTimelineWire);
+
 const playerTeamTabsWireMarker = "wireTimeline(els.drawerBody)}";
 if (!appJs.includes(playerTeamTabsWireMarker)) throw new Error('Expected V3.6 renderStats tab wiring was not found.');
 appJs = appJs.replace(playerTeamTabsWireMarker, "wireTimeline(els.drawerBody);els.drawerBody.querySelectorAll('.team-tab-btn').forEach(btn=>btn.onclick=()=>{els.drawerBody.querySelectorAll('.team-tab-btn').forEach(x=>x.classList.toggle('active',x===btn));els.drawerBody.querySelectorAll('.team-tab-pane').forEach(x=>x.classList.toggle('active',x.dataset.teamPane===btn.dataset.teamTab))})}");
