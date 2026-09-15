@@ -90,13 +90,15 @@ if (!appJs.includes('MyHockeyHubGameNormalization') || !appJs.includes('MyHockey
 for (const playerMethod of ['normalizeStandingPlayer','teamRosterFromGame','playerEvents','playerGameActivity','dedupePlayers','normalizePlayer','positionCode']) {
   if (!appJs.includes(`MyHockeyHubPlayerNormalization.${playerMethod}`)) throw new Error(`Running player flow is not using ${playerMethod}.`);
 }
-if (!appJs.includes('>Pos</th>')) throw new Error('Game-stats player table is missing the position indicator column.');
-if (!appJs.includes('>SOG</th>')) throw new Error('Game-stats skater table is missing the SOG column.');
-for (const goalieColumn of ['>SA</th>', '>GA</th>', '>MIN</th>']) {
-  if (!appJs.includes(goalieColumn)) throw new Error(`Game-stats goalie table is missing the ${goalieColumn} column.`);
-}
-if (!appJs.includes('player-table-scroll') || !appJs.includes('col-num') || !appJs.includes('col-icon') || !appJs.includes('col-team') || !appJs.includes('col-player') || !appJs.includes('col-narrow')) throw new Error('Game-stats player tables are missing the column-alignment classes.');
+if (!appJs.includes('Forwards') || !appJs.includes('Defense')) throw new Error('Game-stats player table is missing the Forwards/Defense position split (replaces the old Pos column).');
+if (!appJs.includes('player-table-scroll') || !appJs.includes('col-num') || !appJs.includes('col-team') || !appJs.includes('col-player') || !appJs.includes('col-narrow')) throw new Error('Game-stats player tables are missing the column-alignment classes.');
 if (!appJs.includes('player-tables-desktop') || !appJs.includes('player-tables-mobile') || !appJs.includes('team-tab-btn') || !appJs.includes('team-tab-pane') || !appJs.includes('data-team-tab') || !appJs.includes('data-team-pane')) throw new Error('Mobile per-team player-table tabs were not wired into the running app.');
+if (appJs.includes('star player-follow')) throw new Error('Game-stats player tables still show the per-row follow star (should be removed in favor of a light followed-row highlight).');
+if (!appJs.includes('followed-row')) throw new Error('Game-stats player tables are missing the followed-row highlight class.');
+for (const columnHeader of ['header:"G"', 'header:"A"', 'header:"PTS"', 'header:"PIM"', 'header:"SOG"', 'header:"SV"', 'header:"SA"', 'header:"GA"', 'header:"SV%"', 'header:"GAA"', 'header:"MIN"']) {
+  if (!appJs.includes(columnHeader)) throw new Error(`Game-stats player tables are missing the ${columnHeader} column definition.`);
+}
+if (!appJs.includes('stat-legend')) throw new Error('Game-stats player tables are missing the stat legend.');
 if (!appJs.includes('id="myTeamSwitcher"') || !appJs.includes('my-team-switcher-select') || !appJs.includes('my-team-switcher-pills')) throw new Error('Mobile My Teams switcher dropdown was not wired into the running app.');
 if (appJs.includes('Open game on GameSheet')) throw new Error('Expanded timeline event still shows the redundant GameSheet link.');
 if (!appJs.includes('MyHockeyHubDrawerNavigation.createDrawerNavigation') || !appJs.includes('MyHockeyHubDrawerNav') || !appJs.includes('backDrawer')) throw new Error('Drawer navigation stack was not wired into the running app.');

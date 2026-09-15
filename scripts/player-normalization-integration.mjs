@@ -163,24 +163,59 @@ replaceFunctionContaining('No roster data reported.', ({ name, params }) => {
     if(!rows.length)return '<div class="empty" style="padding:16px">No roster data reported.</div>';
     const goalies=rows.filter(player=>window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind)==='G');
     const skaters=rows.filter(player=>window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind)!=='G');
-    const follow=player=>\`<button class="star player-follow \${favs[String(player.id)]?'active':''}" data-player="\${esc(player.id)}" data-side="\${esc(player._side)}" title="\${favs[String(player.id)]?'Unfollow player':'Follow player'}">\${favs[String(player.id)]?'★':'☆'}</button>\`;
     const playerLink=player=>\`<button class="player-link" data-player="\${esc(player.id)}">\${esc(player.name)}</button>\`;
     const formatGaa=window.MyHockeyHubPlayerNormalization.formatGaa;
     const formatSvPct=window.MyHockeyHubPlayerNormalization.formatSvPct;
     const formatMinutes=value=>{if(value==null||value===''||value==='—')return '—';const n=Number(value);return Number.isFinite(n)?String(Math.round(n)):String(value)};
-    const skaterTable=skaters.length?\`<section class="player-subtable"><h4>Skaters</h4><div class="player-table-scroll"><table><thead><tr><th class="col-icon"></th><th class="col-team">Team</th><th class="col-player">Player</th><th class="col-narrow">Pos</th><th class="col-narrow">#</th><th class="col-num">G</th><th class="col-num">A</th><th class="col-num">PTS</th><th class="col-num">PIM</th><th class="col-num">SOG</th></tr></thead><tbody>\${skaters.map(player=>\`<tr><td class="col-icon">\${follow(player)}</td><td class="col-team">\${esc(player._team)}</td><td class="col-player">\${playerLink(player)}</td><td class="col-narrow">\${esc(window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind))}</td><td class="col-narrow">\${esc(player.number||'')}</td><td class="col-num">\${esc(player.g??0)}</td><td class="col-num">\${esc(player.a??0)}</td><td class="col-num">\${esc(player.pts??0)}</td><td class="col-num">\${esc(player.pim??0)}</td><td class="col-num">\${esc(player.sog??'—')}</td></tr>\`).join('')}</tbody></table></div></section>\`:'';
-    const goalieTable=goalies.length?\`<section class="player-subtable goalie-subtable"><h4>Goalies</h4><div class="player-table-scroll"><table><thead><tr><th class="col-icon"></th><th class="col-team">Team</th><th class="col-player">Player</th><th class="col-narrow">#</th><th class="col-num">SV</th><th class="col-num">SA</th><th class="col-num">GA</th><th class="col-num">SV%</th><th class="col-num">GAA</th><th class="col-narrow">MIN</th></tr></thead><tbody>\${goalies.map(player=>\`<tr><td class="col-icon">\${follow(player)}</td><td class="col-team">\${esc(player._team)}</td><td class="col-player">\${playerLink(player)}</td><td class="col-narrow">\${esc(player.number||'')}</td><td class="col-num">\${esc(player.saves??'—')}</td><td class="col-num">\${esc(player.sa??'—')}</td><td class="col-num">\${esc(player.ga??'—')}</td><td class="col-num">\${esc(formatSvPct(player.svPct))}</td><td class="col-num">\${esc(formatGaa(player.gaa))}</td><td class="col-narrow">\${esc(formatMinutes(player.minutes))}</td></tr>\`).join('')}</tbody></table></div></section>\`:'';
-    const desktopTables=\`<div class="player-tables-desktop"><div class="player-tables">\${skaterTable}\${goalieTable}</div></div>\`;
+    const useful=value=>value!=null&&value!==''&&value!=='—';
+    const rowAttrs=player=>favs[String(player.id)]?' class="followed-row"':'';
+    const canonicalPos=player=>window.MyHockeyHubPlayerNormalization.canonicalPosition(player.position,player.kind);
+    const SKATER_COLUMNS=[
+      {header:'G',label:'Goals',value:p=>p.g??0},
+      {header:'A',label:'Assists',value:p=>p.a??0},
+      {header:'PTS',label:'Points',value:p=>p.pts??0},
+      {header:'PIM',label:'Penalty min.',value:p=>p.pim??0},
+      {header:'SOG',label:'Shots on goal',value:p=>p.sog??'—'}
+    ];
+    const GOALIE_COLUMNS=[
+      {header:'SV',label:'Saves',value:p=>p.saves??'—'},
+      {header:'SA',label:'Shots against',value:p=>p.sa??'—'},
+      {header:'GA',label:'Goals against',value:p=>p.ga??'—'},
+      {header:'SV%',label:'Save %',value:p=>formatSvPct(p.svPct)},
+      {header:'GAA',label:'Goals against avg.',value:p=>formatGaa(p.gaa)},
+      {header:'MIN',label:'Minutes',value:p=>formatMinutes(p.minutes)}
+    ];
+    const visibleColumns=(cols,rowset)=>cols.filter(c=>rowset.some(p=>useful(c.value(p))));
+    const groupTable=(title,groupRows,cols,goalie,showTeam)=>{
+      if(!groupRows.length)return '';
+      const headCells=(showTeam?'<th class="col-team">Team</th>':'')+'<th class="col-player">Player</th><th class="col-narrow">#</th>'+cols.map(c=>\`<th class="col-num">\${esc(c.header)}</th>\`).join('');
+      const bodyRows=groupRows.map(p=>{
+        const cells=(showTeam?\`<td class="col-team">\${esc(p._team)}</td>\`:'')+\`<td class="col-player">\${playerLink(p)}</td><td class="col-narrow">\${esc(p.number||'')}</td>\`+cols.map(c=>\`<td class="col-num">\${esc(c.value(p))}</td>\`).join('');
+        return \`<tr\${rowAttrs(p)}>\${cells}</tr>\`;
+      }).join('');
+      return \`<section class="player-subtable\${goalie?' goalie-subtable':''}"><h4>\${esc(title)}</h4><div class="player-table-scroll"><table><thead><tr>\${headCells}</tr></thead><tbody>\${bodyRows}</tbody></table></div></section>\`;
+    };
+    const legend=cols=>cols.length?\`<div class="stat-legend">\${cols.map(c=>\`<span><b>\${esc(c.header)}</b> \${esc(c.label)}</span>\`).join('')}</div>\`:'';
+    const skaterSections=(skaterRows,showTeam)=>{
+      if(!skaterRows.length)return '';
+      const cols=visibleColumns(SKATER_COLUMNS,skaterRows);
+      const forwards=skaterRows.filter(p=>canonicalPos(p)==='Forward');
+      const defense=skaterRows.filter(p=>canonicalPos(p)==='Defense');
+      const others=skaterRows.filter(p=>canonicalPos(p)!=='Forward'&&canonicalPos(p)!=='Defense');
+      return groupTable('Forwards',forwards,cols,false,showTeam)+groupTable('Defense',defense,cols,false,showTeam)+groupTable('Skaters',others,cols,false,showTeam)+legend(cols);
+    };
+    const goalieSection=(goalieRows,showTeam)=>{
+      if(!goalieRows.length)return '';
+      const cols=visibleColumns(GOALIE_COLUMNS,goalieRows);
+      return groupTable('Goalies',goalieRows,cols,true,showTeam)+legend(cols);
+    };
+    const desktopTables=\`<div class="player-tables-desktop"><div class="player-tables">\${skaterSections(skaters,true)}\${goalieSection(goalies,true)}</div></div>\`;
     const teamSides=[{side:'visitor',label:${box}.visitor?.title||'Away'},{side:'home',label:${box}.home?.title||'Home'}];
     const teamPane=(side,label,active)=>{
-      const teamSkaters=skaters.filter(player=>player._side===side);
-      const teamGoalies=goalies.filter(player=>player._side===side);
-      const teamSkaterRows=teamSkaters.map(player=>\`<tr><td class="col-icon">\${follow(player)}</td><td class="col-player">\${playerLink(player)}</td><td class="col-narrow">\${esc(window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind))}</td><td class="col-narrow">\${esc(player.number||'')}</td><td class="col-num">\${esc(player.g??0)}</td><td class="col-num">\${esc(player.a??0)}</td><td class="col-num">\${esc(player.pts??0)}</td><td class="col-num">\${esc(player.pim??0)}</td><td class="col-num">\${esc(player.sog??'—')}</td></tr>\`).join('');
-      const teamGoalieRows=teamGoalies.map(player=>\`<tr><td class="col-icon">\${follow(player)}</td><td class="col-player">\${playerLink(player)}</td><td class="col-narrow">\${esc(player.number||'')}</td><td class="col-num">\${esc(player.saves??'—')}</td><td class="col-num">\${esc(player.sa??'—')}</td><td class="col-num">\${esc(player.ga??'—')}</td><td class="col-num">\${esc(formatSvPct(player.svPct))}</td><td class="col-num">\${esc(formatGaa(player.gaa))}</td><td class="col-narrow">\${esc(formatMinutes(player.minutes))}</td></tr>\`).join('');
-      const teamSkaterTable=teamSkaters.length?\`<section class="player-subtable"><h4>Skaters</h4><div class="player-table-scroll"><table><thead><tr><th class="col-icon"></th><th class="col-player">Player</th><th class="col-narrow">Pos</th><th class="col-narrow">#</th><th class="col-num">G</th><th class="col-num">A</th><th class="col-num">PTS</th><th class="col-num">PIM</th><th class="col-num">SOG</th></tr></thead><tbody>\${teamSkaterRows}</tbody></table></div></section>\`:'';
-      const teamGoalieTable=teamGoalies.length?\`<section class="player-subtable goalie-subtable"><h4>Goalies</h4><div class="player-table-scroll"><table><thead><tr><th class="col-icon"></th><th class="col-player">Player</th><th class="col-narrow">#</th><th class="col-num">SV</th><th class="col-num">SA</th><th class="col-num">GA</th><th class="col-num">SV%</th><th class="col-num">GAA</th><th class="col-narrow">MIN</th></tr></thead><tbody>\${teamGoalieRows}</tbody></table></div></section>\`:'';
-      const empty=!teamSkaters.length&&!teamGoalies.length?'<div class="empty" style="padding:16px">No roster data reported.</div>':'';
-      return \`<div class="team-tab-pane\${active?' active':''}" data-team-pane="\${esc(side)}"><div class="player-tables">\${teamSkaterTable}\${teamGoalieTable}\${empty}</div></div>\`;
+      const teamSkaters=skaters.filter(p=>p._side===side);
+      const teamGoalies=goalies.filter(p=>p._side===side);
+      const body=skaterSections(teamSkaters,false)+goalieSection(teamGoalies,false)+(!teamSkaters.length&&!teamGoalies.length?'<div class="empty" style="padding:16px">No roster data reported.</div>':'');
+      return \`<div class="team-tab-pane\${active?' active':''}" data-team-pane="\${esc(side)}"><div class="player-tables">\${body}</div></div>\`;
     };
     const teamTabsHtml=teamSides.map((s,i)=>\`<button class="team-tab-btn\${i===0?' active':''}" type="button" data-team-tab="\${esc(s.side)}">\${esc(s.label||(s.side==='visitor'?'Away':'Home'))}</button>\`).join('');
     const teamPanesHtml=teamSides.map((s,i)=>teamPane(s.side,s.label,i===0)).join('');
