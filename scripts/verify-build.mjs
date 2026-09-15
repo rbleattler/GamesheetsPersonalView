@@ -82,6 +82,8 @@ if (!appCss.includes('.game-action-row') || !appCss.includes('.game-meta-two') |
 if (!appCss.includes('.fa-icon') || !appCss.includes('.fa-house') || !appCss.includes('.fa-file-lines') || !appCss.includes('.fa-xmark') || !appCss.includes('data:image/svg+xml;base64')) throw new Error('Selected Font Awesome SVG glyphs were not bundled into app CSS.');
 if (!appCss.includes('.nav button') || !appCss.includes('gap:7px') || !appCss.includes('.close')) throw new Error('Desktop navigation or drawer-control spacing polish was not emitted.');
 if (!appCss.includes('.player-table-scroll table') || !appCss.includes('table-layout:fixed')) throw new Error('Player-table column-alignment CSS was not emitted correctly.');
+if (!appCss.includes('.player-subtable{min-width:0}')) throw new Error('Player-table grid-item min-width fix (prevents mobile overflow) was not emitted correctly.');
+if (!appCss.includes('.player-tables-mobile') || !appCss.includes('.team-tab-btn') || !appCss.includes('.team-tab-pane')) throw new Error('Mobile per-team player-table tabs CSS was not emitted correctly.');
 if (!appCss.includes('.my-team-switcher-select') || !appCss.includes('.my-team-switcher-pills')) throw new Error('Mobile My Teams switcher CSS was not emitted correctly.');
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
 if (!appJs.includes('MyHockeyHubGameNormalization') || !appJs.includes('MyHockeyHubNormalizationParity') || !appJs.includes('Game normalization parity mismatch')) throw new Error('Game stats path is not routed through the normalized detail model with parity checking.');
@@ -94,6 +96,7 @@ for (const goalieColumn of ['>SA</th>', '>GA</th>', '>MIN</th>']) {
   if (!appJs.includes(goalieColumn)) throw new Error(`Game-stats goalie table is missing the ${goalieColumn} column.`);
 }
 if (!appJs.includes('player-table-scroll') || !appJs.includes('col-num') || !appJs.includes('col-icon') || !appJs.includes('col-team') || !appJs.includes('col-player') || !appJs.includes('col-narrow')) throw new Error('Game-stats player tables are missing the column-alignment classes.');
+if (!appJs.includes('player-tables-desktop') || !appJs.includes('player-tables-mobile') || !appJs.includes('team-tab-btn') || !appJs.includes('team-tab-pane') || !appJs.includes('data-team-tab') || !appJs.includes('data-team-pane')) throw new Error('Mobile per-team player-table tabs were not wired into the running app.');
 if (!appJs.includes('id="myTeamSwitcher"') || !appJs.includes('my-team-switcher-select') || !appJs.includes('my-team-switcher-pills')) throw new Error('Mobile My Teams switcher dropdown was not wired into the running app.');
 if (appJs.includes('Open game on GameSheet')) throw new Error('Expanded timeline event still shows the redundant GameSheet link.');
 if (!appJs.includes('MyHockeyHubDrawerNavigation.createDrawerNavigation') || !appJs.includes('MyHockeyHubDrawerNav') || !appJs.includes('backDrawer')) throw new Error('Drawer navigation stack was not wired into the running app.');

@@ -143,6 +143,10 @@ const eventDetailGameSheetLinkCount = appJs.split(eventDetailGameSheetLinkMarker
 if (eventDetailGameSheetLinkCount !== 2) throw new Error(`Expected exactly 2 occurrences of the expanded-event GameSheet link, found ${eventDetailGameSheetLinkCount}.`);
 appJs = appJs.split(eventDetailGameSheetLinkMarker).join('');
 
+const playerTeamTabsWireMarker = "wireTimeline(els.drawerBody)}";
+if (!appJs.includes(playerTeamTabsWireMarker)) throw new Error('Expected V3.6 renderStats tab wiring was not found.');
+appJs = appJs.replace(playerTeamTabsWireMarker, "wireTimeline(els.drawerBody);els.drawerBody.querySelectorAll('.team-tab-btn').forEach(btn=>btn.onclick=()=>{els.drawerBody.querySelectorAll('.team-tab-btn').forEach(x=>x.classList.toggle('active',x===btn));els.drawerBody.querySelectorAll('.team-tab-pane').forEach(x=>x.classList.toggle('active',x.dataset.teamPane===btn.dataset.teamTab))})}");
+
 const removeTeamWireMarker = "$('#removeTeam').onclick=()=>{if(window.confirm(`Remove ${t.title} from My Teams?`)){removeMyTeam(t.id);renderTeam()}};";
 if (!appJs.includes(removeTeamWireMarker)) throw new Error('Expected V3.6 removeTeam wiring was not found.');
 appJs = appJs.replace(removeTeamWireMarker, "const confirmRemoveTeam=()=>{if(window.confirm(`Remove ${t.title} from My Teams?`)){removeMyTeam(t.id);renderTeam()}};$('#removeTeam').onclick=confirmRemoveTeam;if($('#removeTeamMobile'))$('#removeTeamMobile').onclick=confirmRemoveTeam;");
