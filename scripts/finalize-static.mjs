@@ -37,17 +37,19 @@ const faCssSource = [
   '@media(max-width:560px){.nav{gap:3px}.nav button{display:grid;gap:2px}}'
 ].join('\n');
 
-const [guardSource, venueLinksSource, cardActionsSource, cardActionsCss] = await Promise.all([
+const [guardSource, venueLinksSource, cardActionsSource, cardActionsCss, gameNormalizationSource] = await Promise.all([
   read('src/app/fetch-guard.js'),
   read('src/app/venue-links.js'),
   read('src/app/card-actions.js'),
-  read('src/app/card-actions.css')
+  read('src/app/card-actions.css'),
+  read('src/app/game-normalization.js')
 ]);
-const [{ code: minGuard }, { code: minVenueLinks }, { code: minCardActions }, { code: minCardActionsCss }, { code: minFaCss }] = await Promise.all([
+const [{ code: minGuard }, { code: minVenueLinks }, { code: minCardActions }, { code: minCardActionsCss }, { code: minGameNormalization }, { code: minFaCss }] = await Promise.all([
   transform(guardSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(venueLinksSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(cardActionsSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(cardActionsCss, { loader: 'css', minify: true }),
+  transform(gameNormalizationSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(faCssSource, { loader: 'css', minify: true })
 ]);
 const [existingAppCss, existingAppJs] = await Promise.all([
@@ -61,6 +63,7 @@ await Promise.all([
   writeDist('assets/fetch-guard.js', minGuard),
   writeDist('assets/venue-links.js', minVenueLinks),
   writeDist('assets/card-actions.js', minCardActions),
+  writeDist('assets/game-normalization.js', minGameNormalization),
   writeDist('assets/app.js', finalizedAppJs),
   writeDist('assets/app.css', `${existingAppCss}\n${minFaCss}\n${minCardActionsCss}`)
 ]);
@@ -68,6 +71,7 @@ await Promise.all([
 const assetPaths = [
   'assets/app.css',
   'assets/foundation.js',
+  'assets/game-normalization.js',
   'assets/app.js',
   'assets/router.js',
   'assets/venue-links.js',
@@ -102,14 +106,14 @@ appHtml = appHtml
   .replace('<span class="nav-icon">🗓</span>', `<span class="nav-icon">${icon('calendar-days')}</span>`);
 appHtml = appHtml.replace(
   '<script src="../assets/foundation.js" defer></script>',
-  '<script src="../assets/fetch-guard.js" defer></script>\n<script src="../assets/foundation.js" defer></script>'
+  '<script src="../assets/fetch-guard.js" defer></script>\n<script src="../assets/foundation.js" defer></script>\n<script src="../assets/game-normalization.js" defer></script>'
 );
 appHtml = appHtml.replace(
   '<script src="../assets/diagnostics.js" defer></script>',
   '<script src="../assets/venue-links.js" defer></script>\n<script src="../assets/card-actions.js" defer></script>\n<script src="../assets/diagnostics.js" defer></script>'
 );
 appHtml = appHtml.replace(
-  /\.\.\/assets\/(?:app\.css|foundation\.js|app\.js|router\.js|venue-links\.js|card-actions\.js|diagnostics\.js|fetch-guard\.js)(?:\?v=[a-f0-9]+)?/g,
+  /\.\.\/assets\/(?:app\.css|foundation\.js|game-normalization\.js|app\.js|router\.js|venue-links\.js|card-actions\.js|diagnostics\.js|fetch-guard\.js)(?:\?v=[a-f0-9]+)?/g,
   match => versionAsset(match)
 );
 await writeDist('app/index.html', appHtml);
