@@ -163,7 +163,7 @@ replaceFunctionContaining('No roster data reported.', ({ name, params }) => {
     if(!rows.length)return '<div class="empty" style="padding:16px">No roster data reported.</div>';
     const goalies=rows.filter(player=>window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind)==='G');
     const skaters=rows.filter(player=>window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind)!=='G');
-    const playerLink=player=>\`<button class="player-link" data-player="\${esc(player.id)}">\${esc(player.name)}</button>\`;
+    const playerLink=player=>\`\${player.number?\`<span class="player-num">\${esc(player.number)}</span>\`:''}<button class="player-link" data-player="\${esc(player.id)}">\${esc(player.name)}</button>\`;
     const formatGaa=window.MyHockeyHubPlayerNormalization.formatGaa;
     const formatSvPct=window.MyHockeyHubPlayerNormalization.formatSvPct;
     const formatMinutes=value=>{if(value==null||value===''||value==='—')return '—';const n=Number(value);return Number.isFinite(n)?String(Math.round(n)):String(value)};
@@ -173,7 +173,7 @@ replaceFunctionContaining('No roster data reported.', ({ name, params }) => {
     const SKATER_COLUMNS=[
       {header:'G',label:'Goals',value:p=>p.g??0},
       {header:'A',label:'Assists',value:p=>p.a??0},
-      {header:'PTS',label:'Points',value:p=>p.pts??0},
+      {header:'PT',label:'Points',value:p=>p.pts??0},
       {header:'PIM',label:'Penalty min.',value:p=>p.pim??0},
       {header:'SOG',label:'Shots on goal',value:p=>p.sog??'—'}
     ];
@@ -188,9 +188,9 @@ replaceFunctionContaining('No roster data reported.', ({ name, params }) => {
     const visibleColumns=(cols,rowset)=>cols.filter(c=>rowset.some(p=>useful(c.value(p))));
     const groupTable=(title,groupRows,cols,goalie,showTeam)=>{
       if(!groupRows.length)return '';
-      const headCells=(showTeam?'<th class="col-team">Team</th>':'')+'<th class="col-player">Player</th><th class="col-narrow">#</th>'+cols.map(c=>\`<th class="col-num">\${esc(c.header)}</th>\`).join('');
+      const headCells=(showTeam?'<th class="col-team">Team</th>':'')+'<th class="col-player">Player</th>'+cols.map(c=>\`<th class="col-num">\${esc(c.header)}</th>\`).join('');
       const bodyRows=groupRows.map(p=>{
-        const cells=(showTeam?\`<td class="col-team">\${esc(p._team)}</td>\`:'')+\`<td class="col-player">\${playerLink(p)}</td><td class="col-narrow">\${esc(p.number||'')}</td>\`+cols.map(c=>\`<td class="col-num">\${esc(c.value(p))}</td>\`).join('');
+        const cells=(showTeam?\`<td class="col-team">\${esc(p._team)}</td>\`:'')+\`<td class="col-player">\${playerLink(p)}</td>\`+cols.map(c=>\`<td class="col-num">\${esc(c.value(p))}</td>\`).join('');
         return \`<tr\${rowAttrs(p)}>\${cells}</tr>\`;
       }).join('');
       return \`<section class="player-subtable\${goalie?' goalie-subtable':''}"><h4>\${esc(title)}</h4><div class="player-table-scroll"><table><thead><tr>\${headCells}</tr></thead><tbody>\${bodyRows}</tbody></table></div></section>\`;

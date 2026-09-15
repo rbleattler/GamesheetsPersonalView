@@ -91,11 +91,12 @@ for (const playerMethod of ['normalizeStandingPlayer','teamRosterFromGame','play
   if (!appJs.includes(`MyHockeyHubPlayerNormalization.${playerMethod}`)) throw new Error(`Running player flow is not using ${playerMethod}.`);
 }
 if (!appJs.includes('Forwards') || !appJs.includes('Defense')) throw new Error('Game-stats player table is missing the Forwards/Defense position split (replaces the old Pos column).');
-if (!appJs.includes('player-table-scroll') || !appJs.includes('col-num') || !appJs.includes('col-team') || !appJs.includes('col-player') || !appJs.includes('col-narrow')) throw new Error('Game-stats player tables are missing the column-alignment classes.');
+if (!appJs.includes('player-table-scroll') || !appJs.includes('col-num') || !appJs.includes('col-team') || !appJs.includes('col-player')) throw new Error('Game-stats player tables are missing the column-alignment classes.');
+if (!appJs.includes('player-num')) throw new Error('Game-stats player tables are missing the merged jersey-number-in-player-column treatment.');
 if (!appJs.includes('player-tables-desktop') || !appJs.includes('player-tables-mobile') || !appJs.includes('team-tab-btn') || !appJs.includes('team-tab-pane') || !appJs.includes('data-team-tab') || !appJs.includes('data-team-pane')) throw new Error('Mobile per-team player-table tabs were not wired into the running app.');
 if (appJs.includes('star player-follow')) throw new Error('Game-stats player tables still show the per-row follow star (should be removed in favor of a light followed-row highlight).');
 if (!appJs.includes('followed-row')) throw new Error('Game-stats player tables are missing the followed-row highlight class.');
-for (const columnHeader of ['header:"G"', 'header:"A"', 'header:"PTS"', 'header:"PIM"', 'header:"SOG"', 'header:"SV"', 'header:"SA"', 'header:"GA"', 'header:"SV%"', 'header:"GAA"', 'header:"MIN"']) {
+for (const columnHeader of ['header:"G"', 'header:"A"', 'header:"PT"', 'header:"PIM"', 'header:"SOG"', 'header:"SV"', 'header:"SA"', 'header:"GA"', 'header:"SV%"', 'header:"GAA"', 'header:"MIN"']) {
   if (!appJs.includes(columnHeader)) throw new Error(`Game-stats player tables are missing the ${columnHeader} column definition.`);
 }
 if (!appJs.includes('stat-legend')) throw new Error('Game-stats player tables are missing the stat legend.');
