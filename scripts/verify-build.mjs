@@ -60,7 +60,7 @@ if (!legacyLauncherHtml.includes('http-equiv="refresh" content="0;url=./"') || !
 if (legacyLauncherHtml.includes('url=app/') || legacyLauncherHtml.includes("location.replace('app/")) throw new Error('Legacy gamesheets_plus.html still redirects directly to the app.');
 if (!guardJs.includes('MyHockeyHubFetchGuard') || !guardJs.includes('AbortController') || !guardJs.includes('TimeoutError')) throw new Error('Fetch timeout guard was not emitted correctly.');
 if (!gameNormalizationJs.includes('MyHockeyHubGameNormalization') || !gameNormalizationJs.includes('gameBoxFromFirestore')) throw new Error('Game-detail normalization runtime was not emitted correctly.');
-if (!playerNormalizationJs.includes('MyHockeyHubPlayerNormalization') || !playerNormalizationJs.includes('normalizeStandingPlayer') || !playerNormalizationJs.includes('teamRosterFromGame') || !playerNormalizationJs.includes('playerGameActivity') || !playerNormalizationJs.includes('dedupePlayers')) throw new Error('Player/roster normalization runtime was not emitted correctly.');
+if (!playerNormalizationJs.includes('MyHockeyHubPlayerNormalization') || !playerNormalizationJs.includes('normalizeStandingPlayer') || !playerNormalizationJs.includes('teamRosterFromGame') || !playerNormalizationJs.includes('playerGameActivity') || !playerNormalizationJs.includes('dedupePlayers') || !playerNormalizationJs.includes('canonicalPosition') || !playerNormalizationJs.includes('positionCode')) throw new Error('Player/roster normalization runtime was not emitted correctly.');
 if (!venueLinksJs.includes('livebarnVenues.v1') || !venueLinksJs.includes('gamecard') || !venueLinksJs.includes('LiveBarn venue')) throw new Error('Venue LiveBarn inference bridge was not emitted correctly.');
 if (!cardActionsJs.includes('game-action-row') || !cardActionsJs.includes('GameSheet') || !cardActionsJs.includes('LiveBarn')) throw new Error('Game-card action-row decorator was not emitted correctly.');
 if (!cardActionsJs.includes('fa-file-lines') || !cardActionsJs.includes('fa-circle-play') || cardActionsJs.includes('▶')) throw new Error('Game actions are not using Font Awesome glyphs.');
@@ -70,9 +70,10 @@ if (!appCss.includes('.fa-icon') || !appCss.includes('.fa-house') || !appCss.inc
 if (!appCss.includes('.nav button') || !appCss.includes('gap:7px') || !appCss.includes('.close')) throw new Error('Desktop navigation or drawer-control spacing polish was not emitted.');
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
 if (!appJs.includes('MyHockeyHubGameNormalization') || !appJs.includes('MyHockeyHubNormalizationParity') || !appJs.includes('Game normalization parity mismatch')) throw new Error('Game stats path is not routed through the normalized detail model with parity checking.');
-for (const playerMethod of ['normalizeStandingPlayer','teamRosterFromGame','playerEvents','playerGameActivity','dedupePlayers','normalizePlayer']) {
+for (const playerMethod of ['normalizeStandingPlayer','teamRosterFromGame','playerEvents','playerGameActivity','dedupePlayers','normalizePlayer','positionCode']) {
   if (!appJs.includes(`MyHockeyHubPlayerNormalization.${playerMethod}`)) throw new Error(`Running player flow is not using ${playerMethod}.`);
 }
+if (!appJs.includes('<th>Pos</th>')) throw new Error('Game-stats player table is missing the position indicator column.');
 if (!appJs.includes('scheduleLoadMore') || !appJs.includes('data-schedule-more') || !appJs.includes('IntersectionObserver') || !appJs.includes('700px 0px')) throw new Error('Schedule progressive rendering was not emitted correctly.');
 if (appJs.includes('version:"3.6"') || appJs.includes('version:"4.0.0-beta.0"')) throw new Error('Generated app still reports a pre-V4 version.');
 for (const method of ['seasonInfo','seasonDivisions','unifiedGames','skaterStandings','goalieStandings','firestoreGame']) {
