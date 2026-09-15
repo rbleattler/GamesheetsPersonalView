@@ -104,6 +104,16 @@ test('next game selects the earliest upcoming relevant game, including a live on
   assert.equal(summary.nextGame.gameId, 'g-near');
 });
 
+test('stale live games are not treated as the next game', () => {
+  const now = new Date('2026-01-10T00:00:00Z');
+  const games = [
+    game({ id: 'g-stale', days: 0, status: 'live', home: { id: TEAM, title: 'Mine', goals: 1 }, visitor: { id: OPP_A, title: 'Opp A', goals: 1 } }),
+    game({ id: 'g-next', days: 15, status: 'scheduled', home: { id: TEAM, title: 'Mine', goals: null }, visitor: { id: OPP_B, title: 'Opp B', goals: null } })
+  ];
+  const summary = normalize.teamSeasonSummary(TEAM, games, { now });
+  assert.equal(summary.nextGame.gameId, 'g-next');
+});
+
 test('multiple games are not double-counted even if the input array repeats one', () => {
   const now = new Date('2026-01-10T00:00:00Z');
   const g1 = game({ id: 'g1', days: 0, home: { id: TEAM, title: 'Mine', goals: 4 }, visitor: { id: OPP_A, title: 'Opp A', goals: 2 } });
@@ -125,10 +135,10 @@ test('OT/SO-decided finals still count as completed even though status is not th
 test('current streak reflects the most recent consecutive same-result completed games', () => {
   const now = new Date('2026-01-10T00:00:00Z');
   const games = [
-    game({ id: 'g1', days: 0, home: { id: TEAM, title: 'Mine', goals: 1 }, visitor: { id: OPP_A, title: 'Opp A', goals: 3 } }), // L
-    game({ id: 'g2', days: 1, home: { id: TEAM, title: 'Mine', goals: 4 }, visitor: { id: OPP_A, title: 'Opp A', goals: 1 } }), // W
-    game({ id: 'g3', days: 2, home: { id: TEAM, title: 'Mine', goals: 5 }, visitor: { id: OPP_A, title: 'Opp A', goals: 0 } }), // W
-    game({ id: 'g4', days: 3, home: { id: TEAM, title: 'Mine', goals: 2 }, visitor: { id: OPP_A, title: 'Opp A', goals: 0 } })  // W
+    game({ id: 'g1', days: 0, home: { id: TEAM, title: 'Mine', goals: 1 }, visitor: { id: OPP_A, title: 'Opp A', goals: 3 } }),
+    game({ id: 'g2', days: 1, home: { id: TEAM, title: 'Mine', goals: 4 }, visitor: { id: OPP_A, title: 'Opp A', goals: 1 } }),
+    game({ id: 'g3', days: 2, home: { id: TEAM, title: 'Mine', goals: 5 }, visitor: { id: OPP_A, title: 'Opp A', goals: 0 } }),
+    game({ id: 'g4', days: 3, home: { id: TEAM, title: 'Mine', goals: 2 }, visitor: { id: OPP_A, title: 'Opp A', goals: 0 } })
   ];
   const summary = normalize.teamSeasonSummary(TEAM, games, { now });
   assert.deepEqual(summary.streak, { result: 'W', count: 3 });
@@ -137,8 +147,8 @@ test('current streak reflects the most recent consecutive same-result completed 
 test('home/away splits are tracked separately for the deeper stats view', () => {
   const now = new Date('2026-01-10T00:00:00Z');
   const games = [
-    game({ id: 'g1', days: 0, home: { id: TEAM, title: 'Mine', goals: 3 }, visitor: { id: OPP_A, title: 'Opp A', goals: 1 } }), // home W
-    game({ id: 'g2', days: 1, home: { id: OPP_B, title: 'Opp B', goals: 2 }, visitor: { id: TEAM, title: 'Mine', goals: 1 } })  // away L
+    game({ id: 'g1', days: 0, home: { id: TEAM, title: 'Mine', goals: 3 }, visitor: { id: OPP_A, title: 'Opp A', goals: 1 } }),
+    game({ id: 'g2', days: 1, home: { id: OPP_B, title: 'Opp B', goals: 2 }, visitor: { id: TEAM, title: 'Mine', goals: 1 } })
   ];
   const summary = normalize.teamSeasonSummary(TEAM, games, { now });
   assert.equal(summary.home.gamesPlayed, 1);
