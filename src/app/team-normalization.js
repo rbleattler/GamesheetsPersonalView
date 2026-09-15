@@ -19,6 +19,11 @@
     return new Date(game?.timeStampZulu || `${game?.date || ''} ${game?.time || ''}`);
   }
 
+  function isStaleLiveGame(game, now = new Date()) {
+    const date = gameDate(game);
+    return isLiveGame(game) && Number.isFinite(+date) && (+now - +date) > 24 * 60 * 60 * 1000;
+  }
+
   function sideForTeam(game, teamId) {
     const id = String(teamId || '');
     if (!id) return '';
@@ -58,7 +63,7 @@
       .filter(({ game }) => isCompletedGame(game))
       .sort((a, b) => gameDate(a.game) - gameDate(b.game));
     const upcoming = teamGames
-      .filter(({ game }) => !isCompletedGame(game) && (isLiveGame(game) || gameDate(game) >= now))
+      .filter(({ game }) => !isCompletedGame(game) && !isStaleLiveGame(game, now) && (isLiveGame(game) || gameDate(game) >= now))
       .sort((a, b) => gameDate(a.game) - gameDate(b.game));
 
     let wins = 0, losses = 0, ties = 0, goalsFor = 0, goalsAgainst = 0;
@@ -133,6 +138,7 @@
   globalThis.MyHockeyHubTeamNormalization = {
     isCompletedGame,
     isLiveGame,
+    isStaleLiveGame,
     sideForTeam,
     teamSeasonSummary
   };
