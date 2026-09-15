@@ -64,6 +64,7 @@ if (!appCss.includes('.fa-icon') || !appCss.includes('.fa-house') || !appCss.inc
 if (!appCss.includes('.nav button') || !appCss.includes('gap:7px') || !appCss.includes('.close')) throw new Error('Desktop navigation or drawer-control spacing polish was not emitted.');
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
 if (!appJs.includes('MyHockeyHubGameNormalization') || !appJs.includes('MyHockeyHubNormalizationParity') || !appJs.includes('Game normalization parity mismatch')) throw new Error('Game stats path is not routed through the normalized detail model with parity checking.');
+if (!appJs.includes('scheduleLoadMore') || !appJs.includes('data-schedule-more') || !appJs.includes('IntersectionObserver') || !appJs.includes('700px 0px')) throw new Error('Schedule progressive rendering was not emitted correctly.');
 if (appJs.includes('version:"3.6"') || appJs.includes('version:"4.0.0-beta.0"')) throw new Error('Generated app still reports a pre-V4 version.');
 for (const method of ['seasonInfo','seasonDivisions','unifiedGames','skaterStandings','goalieStandings']) {
   if (!appJs.includes(method)) throw new Error(`App bundle is not using API client method ${method}.`);
