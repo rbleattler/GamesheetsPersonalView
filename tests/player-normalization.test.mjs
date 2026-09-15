@@ -50,6 +50,19 @@ test('preserves standing-row numeric defaults while using the stable player shap
   assert.equal(player.sog,0);
 });
 
+test('standing rows retain fallback team and division metadata',()=>{
+  const player=normalize.normalizeStandingPlayer({
+    player:{id:'31',firstName:'Fallback',lastName:'Player',teamId:'V'},
+    teamId:'V',
+    division:{id:'12'},
+    stats:{pts:4}
+  },{kind:'skater',team:game.visitor,division:game.visitor.division,divisionId:'12'});
+  assert.equal(player.teamId,'V');
+  assert.equal(player.teamTitle,'Visitors');
+  assert.equal(player.teamLogo,'v.png');
+  assert.equal(player.divisionTitle,'12U A');
+});
+
 test('extracts a team roster from decoded game data',()=>{
   const roster=normalize.teamRosterFromGame(game,decoded,'H',{divisionId:'12',divisionTitle:'12U A'});
   assert.equal(roster.length,1);
