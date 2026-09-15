@@ -21,6 +21,7 @@ const faIcons = {
   'calendar-days': 'calendar-days.svg',
   'file-lines': 'file-lines.svg',
   'circle-play': 'circle-play.svg',
+  'arrow-left': 'arrow-left.svg',
   xmark: 'xmark.svg'
 };
 
@@ -33,7 +34,9 @@ const faCssSource = [
   ...faEntries.map(([name, data]) => `.fa-${name}{-webkit-mask-image:url("data:image/svg+xml;base64,${data}");mask-image:url("data:image/svg+xml;base64,${data}")}`),
   '.top-actions .fa-icon{font-size:1rem}.nav-icon .fa-icon{font-size:1rem}',
   '.nav{gap:8px}.nav button{display:inline-flex;align-items:center;gap:7px}.nav-icon{display:inline-flex;align-items:center;justify-content:center;line-height:1}',
-  '.close{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:1rem}.close .fa-icon{font-size:1rem}',
+  '.close,.drawer-back{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:1rem;border:1px solid #30485f;background:#132235;color:#fff;flex:0 0 auto}.close .fa-icon,.drawer-back .fa-icon{font-size:1rem}',
+  '.drawer-title-wrap{display:flex;align-items:flex-start;gap:10px;min-width:0}.drawer-title-wrap>div{min-width:0}.drawer-back[hidden]{display:none}',
+  '.player-tables{display:grid;gap:16px}.player-subtable h4{margin:0 0 7px;font-size:.82rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}.player-table-scroll{overflow:auto}.goalie-subtable{padding-top:2px;border-top:1px solid rgba(120,150,180,.14)}',
   '@media(max-width:560px){.nav{gap:3px}.nav button{display:grid;gap:2px}}'
 ].join('\n');
 
@@ -100,6 +103,7 @@ if (!appHtml.includes('name="myhockeyhub-build"')) {
 }
 appHtml = appHtml
   .replace('<span class="version">V3.6</span>', '<span class="version">V4.0</span>')
+  .replace('<div class="drawerhead"><div><h2 id="drawerTitle">Details</h2><div id="drawerSub" class="muted"></div></div>', `<div class="drawerhead"><div class="drawer-title-wrap"><button id="backDrawer" class="drawer-back" type="button" aria-label="Back" title="Back" hidden>${icon('arrow-left')}</button><div><h2 id="drawerTitle">Details</h2><div id="drawerSub" class="muted"></div></div></div>`)
   .replace(/(<a class="iconbtn home-btn"[^>]*>).*?(<\/a>)/, `$1${icon('house')}$2`)
   .replace(/(<button id="helpBtn"[^>]*>).*?(<\/button>)/, `$1${icon('circle-question')}$2`)
   .replace(/(<button id="menuBtn"[^>]*>).*?(<\/button>)/, `$1${icon('bars')}$2`)
