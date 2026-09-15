@@ -188,7 +188,7 @@ replaceFunctionContaining('No roster data reported.', ({ name, params }) => {
     const visibleColumns=(cols,rowset)=>cols.filter(c=>rowset.some(p=>useful(c.value(p))));
     const groupTable=(title,groupRows,cols,goalie,showTeam)=>{
       if(!groupRows.length)return '';
-      const headCells=(showTeam?'<th class="col-team">Team</th>':'')+'<th class="col-player">Player</th>'+cols.map(c=>\`<th class="col-num">\${esc(c.header)}</th>\`).join('');
+      const headCells=(showTeam?'<th class="col-team">Team</th>':'')+'<th class="col-player">'+(showTeam?'Player':'#&nbsp;Player')+'</th>'+cols.map(c=>\`<th class="col-num">\${esc(c.header)}</th>\`).join('');
       const bodyRows=groupRows.map(p=>{
         const cells=(showTeam?\`<td class="col-team">\${esc(p._team)}</td>\`:'')+\`<td class="col-player">\${playerLink(p)}</td>\`+cols.map(c=>\`<td class="col-num">\${esc(c.value(p))}</td>\`).join('');
         return \`<tr\${rowAttrs(p)}>\${cells}</tr>\`;
