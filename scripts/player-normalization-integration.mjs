@@ -89,7 +89,7 @@ replaceFunctionContaining('No roster data reported.', ({ name, params }) => {
       if(player.id){const id=String(player.id);${state}.playerRegistry[id]={...(${state}.playerRegistry[id]||{}),...player,id}}
       return player
     });
-    const rows=[...normalize('visitor',${box}.visitor),...normalize('home',${box}.home)].filter(player=>player.id&&player.name);
+    const rows=window.MyHockeyHubPlayerNormalization.completeGoalieMetrics([...normalize('visitor',${box}.visitor),...normalize('home',${box}.home)],{scope:'game'}).filter(player=>player.id&&player.name);
     if(!rows.length)return '<div class="empty" style="padding:16px">No roster data reported.</div>';
     const goalies=rows.filter(player=>window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind)==='G');
     const skaters=rows.filter(player=>window.MyHockeyHubPlayerNormalization.positionCode(player.position,player.kind)!=='G');
@@ -110,4 +110,4 @@ const { code: minified } = await transform(code, {
 });
 await writeFile(appPath, minified);
 
-console.log('Routed player standings, roster fallback, player events, recent activity, dedupe, stats-player registration, and split skater/goalie game tables through MyHockeyHubPlayerNormalization.');
+console.log('Routed player standings, roster fallback, player events, recent activity, dedupe, stats-player registration, derived goalie rates, and split skater/goalie game tables through MyHockeyHubPlayerNormalization.');
