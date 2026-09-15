@@ -5,6 +5,26 @@
     return value == null || value === '' ? 0 : Number(value);
   }
 
+  function finiteNumber(value) {
+    if (value == null || value === '' || value === '—') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function durationMinutes(value) {
+    if (value == null || value === '' || value === '—') return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    const text = String(value).trim();
+    if (!text) return null;
+    if (/^\d+(?::\d+){1,2}$/.test(text)) {
+      const parts = text.split(':').map(Number);
+      if (parts.length === 2) return parts[0] + parts[1] / 60;
+      return parts[0] * 60 + parts[1] + parts[2] / 60;
+    }
+    const number = Number(text.replace(/[^0-9.+-]/g, ''));
+    return Number.isFinite(number) ? number : null;
+  }
+
   function playerName(player) {
     if (!player) return '';
     const first = player.firstName || '';
@@ -43,6 +63,65 @@
     return 'S';
   }
 
+  function goalieComponentStats(row, player, stats) {
+    let ga = finiteNumber(
+      stats.ga ?? stats.goalsAgainst ?? stats.goalsAllowed ??
+      player.ga ?? player.goalsAgainst ?? player.goalsAllowed ??
+      row.ga ?? row.goalsAgainst ?? row.goalsAllowed
+    );
+    let sa = finiteNumber(
+      stats.sa ?? stats.shotsAgainst ??
+      player.sa ?? player.shotsAgainst ??
+      row.sa ?? row.shotsAgainst
+    );
+    let saves = finiteNumber(
+      stats.saves ?? stats.sv ?? stats.save ??
+      player.saves ?? player.sv ?? player.save ??
+      row.saves ?? row.sv ?? row.save
+    );
+    const minutes = durationMinutes(
+      stats.min ?? stats.minutes ?? stats.minutesPlayed ?? stats.timePlayed ?? stats.toi ??
+      player.min ?? player.minutes ?? player.minutesPlayed ?? player.timePlayed ?? player.toi ??
+      row.min ?? row.minutes ?? row.minutesPlayed ?? row.timePlayed ?? row.toi
+    );
+    const providedGaa = finiteNumber(stats.gaa ?? player.gaa ?? row.gaa);
+    let providedSvPct = finiteNumber(
+      stats.savePct ?? stats.svPct ?? stats.svPercentage ?? stats.savePercentage ??
+      player.savePct ?? player.svPct ?? player.svPercentage ?? player.savePercentage ??
+      row.savePct ?? row.svPct ?? row.svPercentage ?? row.savePercentage
+    );
+    if (providedSvPct != null && providedSvPct > 1 && providedSvPct <= 100) providedSvPct /= 100;
+    const standardGameMinutes = durationMinutes(
+      stats.gameLength ?? stats.standardGameLength ?? stats.regulationMinutes ??
+      player.gameLength ?? player.standardGameLength ?? player.regulationMinutes ??
+      row.gameLength ?? row.standardGameLength ?? row.regulationMinutes
+    );
+
+    if (sa == null && saves != null && ga != null) sa = saves + ga;
+    if (saves == null && sa != null && ga != null) saves = Math.max(0, sa - ga);
+    if (ga == null && sa != null && saves != null) ga = Math.max(0, sa - saves);
+
+    return { ga, sa, saves, minutes, providedGaa, providedSvPct, standardGameMinutes };
+  }
+
+  function goalieMetrics(row, player, stats, { standardGameMinutes = null } = {}) {
+    const components = goalieComponentStats(row, player, stats);
+    const gameLength = durationMinutes(standardGameMinutes) ?? components.standardGameMinutes;
+    const gaa = components.providedGaa ?? (
+      components.ga != null && components.minutes > 0 && gameLength > 0
+        ? components.ga * (gameLength / components.minutes)
+        : null
+    );
+    const svPct = components.providedSvPct ?? (
+      components.saves != null && components.sa > 0
+        ? components.saves / components.sa
+        : components.saves != null && components.ga != null && components.saves + components.ga > 0
+          ? components.saves / (components.saves + components.ga)
+          : null
+    );
+    return { ...components, gameLength, gaa, svPct };
+  }
+
   function statPlayer(player) {
     if (!player || typeof player !== 'object') return {};
     const stats = player.stats || {};
@@ -61,7 +140,8 @@
     team = {},
     division = {},
     teamId = '',
-    divisionId = ''
+    divisionId = '',
+    standardGameMinutes = null
   } = {}) {
     const row = raw || {};
     const player = row.player || row.skater || row.goalie || row;
@@ -73,7 +153,7 @@
     const inferredKind = kind || (position === 'Goalie' ? 'goalie' : 'skater');
     const displayPosition = position || canonicalPosition('', inferredKind);
 
-    return {
+    const normalized = {
       id: String(player.id ?? row.playerId ?? row.id ?? ''),
       name: playerName(player) || playerName(row),
       kind: inferredKind,
@@ -97,6 +177,19 @@
       so: stats.so ?? stats.shutouts ?? row.shutouts ?? '—',
       saves: stats.saves ?? stats.sv ?? player.saves ?? player.sv ?? row.saves ?? row.sv ?? '—'
     };
+
+    if (inferredKind === 'goalie' || displayPosition === 'Goalie') {
+      const metrics = goalieMetrics(row, player, stats, { standardGameMinutes });
+      normalized.ga = metrics.ga ?? '—';
+      normalized.sa = metrics.sa ?? '—';
+      normalized.minutes = metrics.minutes ?? '—';
+      normalized.gameLength = metrics.gameLength ?? '—';
+      normalized.saves = metrics.saves ?? '—';
+      normalized.gaa = metrics.gaa ?? '—';
+      normalized.svPct = metrics.svPct ?? '—';
+    }
+
+    return normalized;
   }
 
   function normalizeStandingPlayer(raw, options = {}) {
@@ -111,6 +204,73 @@
       pim: numberOrZero(stats.pim),
       sog: numberOrZero(stats.sog ?? stats.shots)
     };
+  }
+
+  function inferGameLength(goalies, { scope = 'season' } = {}) {
+    const explicit = [];
+    const derived = [];
+    for (const goalie of goalies || []) {
+      const gameLength = durationMinutes(goalie?.gameLength);
+      if (gameLength > 0) explicit.push(gameLength);
+      const gaa = finiteNumber(goalie?.gaa);
+      const ga = finiteNumber(goalie?.ga);
+      const minutes = durationMinutes(goalie?.minutes);
+      if (gaa != null && gaa > 0 && ga != null && ga > 0 && minutes > 0) {
+        const candidate = gaa * minutes / ga;
+        if (candidate >= 10 && candidate <= 120) derived.push(candidate);
+      }
+    }
+    const candidates = explicit.length ? explicit : derived;
+    if (candidates.length) {
+      const sorted = [...candidates].sort((a, b) => a - b);
+      return sorted[Math.floor(sorted.length / 2)];
+    }
+    if (scope === 'game') {
+      const byTeam = new Map();
+      for (const goalie of goalies || []) {
+        const minutes = durationMinutes(goalie?.minutes);
+        if (!(minutes > 0)) continue;
+        const key = String(goalie?.teamId || goalie?._side || 'game');
+        byTeam.set(key, (byTeam.get(key) || 0) + minutes);
+      }
+      const totals = [...byTeam.values()].filter(value => value >= 10 && value <= 120).sort((a, b) => a - b);
+      if (totals.length) return totals[totals.length - 1];
+    }
+    return null;
+  }
+
+  function completeGoalieMetrics(players, { scope = 'season' } = {}) {
+    const rows = (players || []).map(player => ({ ...player }));
+    const groups = new Map();
+    for (const player of rows) {
+      if (positionCode(player.position, player.kind) !== 'G') continue;
+      const key = scope === 'game' ? 'game' : String(player.divisionId || 'division');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(player);
+    }
+
+    for (const goalies of groups.values()) {
+      const gameLength = inferGameLength(goalies, { scope });
+      for (const goalie of goalies) {
+        const ga = finiteNumber(goalie.ga);
+        let sa = finiteNumber(goalie.sa);
+        let saves = finiteNumber(goalie.saves);
+        const minutes = durationMinutes(goalie.minutes);
+        if (sa == null && saves != null && ga != null) sa = saves + ga;
+        if (saves == null && sa != null && ga != null) saves = Math.max(0, sa - ga);
+        if (goalie.gaa == null || goalie.gaa === '' || goalie.gaa === '—') {
+          if (ga != null && minutes > 0 && gameLength > 0) goalie.gaa = ga * (gameLength / minutes);
+        }
+        if (goalie.svPct == null || goalie.svPct === '' || goalie.svPct === '—') {
+          if (saves != null && sa > 0) goalie.svPct = saves / sa;
+          else if (saves != null && ga != null && saves + ga > 0) goalie.svPct = saves / (saves + ga);
+        }
+        if (saves != null) goalie.saves = saves;
+        if (sa != null) goalie.sa = sa;
+        if (gameLength > 0 && (goalie.gameLength == null || goalie.gameLength === '' || goalie.gameLength === '—')) goalie.gameLength = gameLength;
+      }
+    }
+    return rows;
   }
 
   function normalizeRoster(decodedGame, {
@@ -219,6 +379,11 @@
       pts: normalized.pts,
       pim: normalized.pim,
       sv: normalized.saves,
+      gaa: normalized.gaa,
+      svPct: normalized.svPct,
+      ga: normalized.ga,
+      sa: normalized.sa,
+      minutes: normalized.minutes,
       events: playerEvents(decodedGame, playerId)
     };
   }
@@ -246,7 +411,7 @@
 
   function dedupePlayers(players) {
     const useful = value => value !== '' && value != null && value !== '—';
-    const richness = value => Object.values(value || {}).filter(useful).length;
+    const richness = value => Object.entries(value || {}).filter(([key, item]) => !key.startsWith('_') && useful(item)).length;
     const specificPosition = position => ['Goalie', 'Defense', 'Forward'].includes(position);
     const merge = (preferred, fallback) => {
       const merged = { ...preferred };
@@ -277,14 +442,21 @@
       const playerIsRicher = richness(normalized) > richness(existing);
       map.set(key, playerIsRicher ? merge(normalized, existing) : merge(existing, normalized));
     }
-    return [...map.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    return completeGoalieMetrics([...map.values()], { scope: 'season' })
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   }
 
   globalThis.MyHockeyHubPlayerNormalization = {
     numberOrZero,
+    finiteNumber,
+    durationMinutes,
     playerName,
     canonicalPosition,
     positionCode,
+    goalieComponentStats,
+    goalieMetrics,
+    inferGameLength,
+    completeGoalieMetrics,
     statPlayer,
     normalizePlayer,
     normalizeStandingPlayer,
