@@ -15,6 +15,34 @@
     return number !== '' ? `#${number}` : '';
   }
 
+  function canonicalPosition(value, kind = '') {
+    const raw = String(value || '').trim();
+    const lower = raw.toLowerCase().replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const lowerKind = String(kind || '').toLowerCase();
+
+    if (!lower) {
+      if (lowerKind.includes('goalie')) return 'Goalie';
+      if (lowerKind.includes('skater')) return 'Skater';
+      return '';
+    }
+
+    if (/^(g|goalie|goaltender|goal keeper|goalkeeper)$/.test(lower) || lower.includes('goalie') || lower.includes('goaltender')) return 'Goalie';
+    if (/^(d|ld|rd|defense|defence|defenseman|defenceman|defender)$/.test(lower) || /defen[cs]/.test(lower)) return 'Defense';
+    if (/^(f|c|lw|rw|forward|center|centre|wing|left wing|right wing)$/.test(lower) || lower.includes('forward') || lower.includes('center') || lower.includes('centre') || lower.includes('wing')) return 'Forward';
+    if (/^(s|skater)$/.test(lower)) return 'Skater';
+
+    const americanized = lower.replace(/defence/g, 'defense').replace(/defenceman/g, 'defenseman');
+    return americanized.charAt(0).toUpperCase() + americanized.slice(1);
+  }
+
+  function positionCode(position, kind = '') {
+    const canonical = canonicalPosition(position, kind);
+    if (canonical === 'Goalie') return 'G';
+    if (canonical === 'Defense') return 'D';
+    if (canonical === 'Forward') return 'F';
+    return 'S';
+  }
+
   function statPlayer(player) {
     if (!player || typeof player !== 'object') return {};
     const stats = player.stats || {};
@@ -40,15 +68,17 @@
     const stats = row.stats || player.stats || row;
     const rowTeam = row.team || player.team || team || {};
     const rowDivision = row.division || player.division || division || {};
-    const position = player.position ?? row.position ?? '';
-    const inferredKind = kind || (String(position).toLowerCase().includes('goalie') ? 'goalie' : 'skater');
+    const rawPosition = player.position ?? row.position ?? '';
+    const position = canonicalPosition(rawPosition, kind);
+    const inferredKind = kind || (position === 'Goalie' ? 'goalie' : 'skater');
+    const displayPosition = position || canonicalPosition('', inferredKind);
 
     return {
       id: String(player.id ?? row.playerId ?? row.id ?? ''),
       name: playerName(player) || playerName(row),
       kind: inferredKind,
       number: player.number ?? player.jersey ?? row.number ?? row.jersey ?? '',
-      position,
+      position: displayPosition,
       teamId: String(rowTeam.id ?? row.teamId ?? player.teamId ?? teamId ?? ''),
       teamTitle: rowTeam.title || rowTeam.name || row.teamTitle || row.teamName || team?.title || '',
       teamLogo: rowTeam.logo || row.teamLogo || team?.logo || '',
@@ -171,7 +201,7 @@
     const raw = (decodedGame?.data?.[side]?.lineup?.players || [])
       .find(candidate => String(candidate?.id || '') === playerId);
     if (!raw) return null;
-    const fallbackKind = player?.kind || (String(player?.position || '').toLowerCase().includes('goalie') ? 'goalie' : '');
+    const fallbackKind = player?.kind || (canonicalPosition(player?.position) === 'Goalie' ? 'goalie' : '');
     const normalized = normalizePlayer(raw, {
       kind: fallbackKind,
       team,
@@ -215,13 +245,30 @@
   }
 
   function dedupePlayers(players) {
+    const useful = value => value !== '' && value != null && value !== '—';
+    const richness = value => Object.values(value || {}).filter(useful).length;
+    const merge = (preferred, fallback) => {
+      const merged = { ...preferred };
+      for (const [key, value] of Object.entries(fallback || {})) {
+        if (!useful(merged[key]) && useful(value)) merged[key] = value;
+      }
+      merged.position = canonicalPosition(merged.position, merged.kind);
+      if (!merged.position) merged.position = canonicalPosition('', merged.kind);
+      return merged;
+    };
+
     const map = new Map();
     for (const player of players || []) {
       if (!player?.id) continue;
       const key = String(player.id);
+      const normalized = { ...player, position: canonicalPosition(player.position, player.kind) };
       const existing = map.get(key);
-      const score = value => Object.values(value || {}).filter(item => item !== '' && item != null).length;
-      if (!existing || score(player) > score(existing)) map.set(key, player);
+      if (!existing) {
+        map.set(key, normalized);
+        continue;
+      }
+      const playerIsRicher = richness(normalized) > richness(existing);
+      map.set(key, playerIsRicher ? merge(normalized, existing) : merge(existing, normalized));
     }
     return [...map.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   }
@@ -229,6 +276,8 @@
   globalThis.MyHockeyHubPlayerNormalization = {
     numberOrZero,
     playerName,
+    canonicalPosition,
+    positionCode,
     statPlayer,
     normalizePlayer,
     normalizeStandingPlayer,
