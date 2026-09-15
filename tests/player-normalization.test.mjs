@@ -37,6 +37,19 @@ test('normalizes roster players into a stable app shape',()=>{
   assert.equal(players[1].saves,22);
 });
 
+test('preserves standing-row numeric defaults while using the stable player shape',()=>{
+  const player=normalize.normalizeStandingPlayer({
+    player:{id:'30',firstName:'Taylor',lastName:'Skater',teamId:'V'},
+    teamId:'V',
+    stats:{g:2,a:3}
+  },{kind:'skater',team:game.visitor,division:game.visitor.division,divisionId:'12'});
+  assert.equal(player.teamTitle,'Visitors');
+  assert.equal(player.g,2);
+  assert.equal(player.a,3);
+  assert.equal(player.pts,0);
+  assert.equal(player.sog,0);
+});
+
 test('extracts a team roster from decoded game data',()=>{
   const roster=normalize.teamRosterFromGame(game,decoded,'H',{divisionId:'12',divisionTitle:'12U A'});
   assert.equal(roster.length,1);
@@ -61,6 +74,14 @@ test('builds recent-game player activity from the same normalized roster source'
   assert.equal(activity.g,2);
   assert.equal(activity.a,1);
   assert.equal(activity.events.length,2);
+});
+
+test('recent-game activity can preserve a known goalie classification when game detail omits position',()=>{
+  const goalieDecoded=structuredClone(decoded);
+  delete goalieDecoded.data.visitor.lineup.players[1].position;
+  const activity=normalize.playerGameActivity(game,goalieDecoded,{id:'11',teamId:'V',kind:'goalie',position:'Goalie'});
+  assert.equal(activity.kind,'goalie');
+  assert.equal(activity.sv,22);
 });
 
 test('dedupes players by id and keeps the richer record',()=>{
