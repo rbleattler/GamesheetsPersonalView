@@ -1,44 +1,73 @@
 # MyHockeyHub
 
-MyHockeyHub is a mobile-first hockey schedule, scores, and stats viewer built around publicly available GameSheet data. It is designed for families and fans who want a simpler personal view of the league information they already care about.
+A lightweight, static personal hockey viewer built around public GameSheet / GameSheet Stats data.
 
-> **Independent project:** MyHockeyHub is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.
+MyHockeyHub provides a focused view of schedules, scores, team activity, favorite venues, players, completed-game statistics, and available external broadcaster links without requiring a GameSheet login.
 
-## Published app
+## Current app
 
-- **Home:** https://rbleattler.com/GamesheetsPersonalView/
-- **App:** https://rbleattler.com/GamesheetsPersonalView/app/
-- **Legacy launcher:** https://rbleattler.com/GamesheetsPersonalView/gamesheets_plus.html
+The current application is the V4 app shell and is deployed through GitHub Pages.
 
-`gamesheets_plus.html` is kept for compatibility with old bookmarks and links. It redirects to the normal MyHockeyHub landing page.
+- Landing page: repository Pages root
+- Application: `/app/`
+- Legacy `gamesheets_plus.html`: retained as a compatibility redirect to the landing page
+- Historical standalone V1–V3.6 prototypes: preserved in Git history and the `prototype-version-archive` release/tag rather than hosted as parallel production pages
 
-The standalone V1–V3.6 prototype era is preserved in the [`prototype-version-archive`](https://github.com/rbleattler/GamesheetsPersonalView/releases/tag/prototype-version-archive) GitHub release/tag rather than being carried forward in the current production artifact.
+The V3.6 implementation remains in `src/baseline/v3.6.html` as an internal migration/build baseline while V4 code is progressively separated into dedicated app modules.
 
-## What it does
+## Features
 
-- Search for a league/season as you type
-- Recognize familiar acronyms conservatively (for example, `DVHL`)
-- Browse and filter the full schedule
-- Save multiple **My Teams**
-- Follow individual **My Players**
-- Save favorite venues
-- Show live and completed game details, scoring, penalties, box score, and rosters
-- Surface GameSheet and actionable LiveBarn links when available
-- Hide obviously stale “Live” games by default
-- Keep preferences locally without requiring an account
-- Offer built-in Help, FAQ access, and a simple feedback/reporting flow
+- League/season discovery from the checked-in public-season catalog
+- Direct season opening by GameSheet URL or season ID
+- My Teams dashboard with recent results and upcoming games
+- Full schedule filters for division, team, rink, date range, favorites, and text search
+- Progressive schedule rendering for large season views
+- Favorite venues and quick venue schedules
+- Player browsing, favorites, team rosters, season stats, and recent-game activity
+- Canonical hockey position display (`Forward`, `Defense`, `Goalie`, or `Skater`) with consistent F/D/G/S shorthand in compact game-stat tables
+- Completed-game scoring, penalties, box score, and player views
+- Game-specific LiveBarn links when public broadcaster metadata supplies an actionable URL
+- Live-game refresh support
+- Help/feedback flow and debug diagnostics
 
-## League / season catalog
+## Architecture
 
-GameSheet’s live season-directory search is partner-restricted, so MyHockeyHub ships a periodically refreshed snapshot at [`data/seasons.json`](data/seasons.json). The app searches that local file in the browser; normal users do **not** scrape GameSheet.
+MyHockeyHub intentionally remains framework-light. It is a static site built with Node + esbuild and deployed to GitHub Pages.
 
-Search ranking favors exact names, starts-with/text matches, explicit acronyms already present in the source name, and current/recent seasons. Inferred acronyms are only used as a lower-confidence fallback. If a newly created season is not in the snapshot yet, users can still open it directly with its GameSheet season URL or season ID.
+Important source areas:
 
-See [`data/README.md`](data/README.md) for catalog maintenance notes.
+- `src/baseline/v3.6.html` — transitional V3.6 application baseline consumed by the build
+- `src/app/foundation.js` — shared API access, normalization helpers, broadcaster discovery, live refresh, replay support
+- `src/app/game-normalization.js` — Firestore game-detail decoding and normalized game/box-score/event model
+- `src/app/player-normalization.js` — stable player/roster models, canonical position semantics, roster extraction, recent activity, and player deduplication
+- `src/app/router.js` — route/deep-link handling
+- `src/app/diagnostics.js` — debug/fixture support
+- `src/app/fetch-guard.js` — fetch timeout protection
+- `src/app/venue-links.js` — venue/LiveBarn inference bridge
+- `src/app/card-actions.js` / `.css` — game-card action decoration
+- `scripts/build.mjs` — baseline extraction and build migration rewrites
+- `scripts/progressive-schedule.mjs` — progressive 30-card schedule rendering pass
+- `scripts/player-normalization-integration.mjs` — transitional wiring from the legacy-derived bundle to the player normalization boundary
+- `scripts/finalize-static.mjs` — asset finalization, cache busting, and selected Font Awesome SVG embedding
+- `scripts/verify-build.mjs` — generated-output assertions
+- `tests/` — fixture-backed normalization and foundation tests
 
-## Architecture and build
+The project does not ship the complete Font Awesome library to the browser. The build reads only the selected Free Solid SVG glyphs needed by the UI and embeds those glyphs into the generated stylesheet.
 
-The project is intentionally lightweight: static HTML, CSS, and JavaScript with a small esbuild-based build step. There is no application server, login system, or MyHockeyHub database.
+## Data access
+
+The app currently uses public GameSheet / GameSheet Stats resources, including:
+
+- `https://gamesheetstats.com/api`
+- public Firestore REST game documents used by GameSheet
+
+The app does not scrape credentials, bypass authentication, or embed authenticated GameSheet pages. External broadcaster links remain links to the provider.
+
+Network behavior is progressively being centralized behind the small client surface in `src/app/foundation.js`, while raw response quirks are normalized before rendering where practical.
+
+## Development
+
+Requires a current Node.js installation.
 
 ```bash
 npm install
@@ -48,79 +77,57 @@ npm run build
 npm run verify
 ```
 
-`npm run build` creates the deployable site in `dist/`. The generated application uses external, cache-busted CSS/JavaScript assets. The transitional V3.6 behavioral baseline is retained internally at `src/baseline/v3.6.html` while the implementation is progressively modularized.
+The built static site is written to `dist/`.
 
-Current build output includes:
-
-```text
-dist/
-  index.html                # MyHockeyHub landing page
-  app/index.html            # primary app
-  gamesheets_plus.html      # legacy redirect to the landing page
-  assets/                   # app/site CSS and JavaScript
-  data/                     # local season catalog
-  debug/                    # sanitized replay fixture for debug mode
-  FAQ.md
-  LICENSE
-```
-
-The historical standalone `v*.html` files and `versions.html` are no longer part of current source or production output; they remain available through Git history and the prototype archive release/tag.
-
-A lightweight router keeps top-level app views in the URL (`?view=team`, `venues`, `players`, or `schedule`) and supports browser back/forward navigation. The app also has a Home control back to the root landing page.
-
-See [`docs/app-shell.md`](docs/app-shell.md) for architecture and hosting details.
-
-## Production hosting
-
-GitHub Pages is configured to use **GitHub Actions** as its source. The production workflow is `.github/workflows/pages-production.yml`.
-
-For the initial cutover, production deployment is intentionally **manual-only** (`workflow_dispatch`) so merging the app-shell PR does not automatically replace the existing live site. After the first native Pages deployment is verified, the workflow can be changed to deploy automatically from `main` and the old production role of `gh-pages` can be retired.
-
-## CI and external data
-
-GitHub Actions validates and builds the app without calling GameSheet. Public GameSheet endpoints can be subject to Cloudflare/bot protection, so CI does not depend on live endpoint access. Regression tests and live-score simulations use sanitized fixtures/mocks.
-
-For an explicit local schema check, run:
+To serve it locally:
 
 ```bash
-npm run probe:schema -- --season 15111
+cd dist
+python -m http.server 8080
 ```
 
-or pass a public HTTPS endpoint with `--url`. The schema probe is intentionally local-only and is never invoked by CI.
+or on Windows:
 
-## Live scores, LiveBarn, and replay testing
+```powershell
+cd dist
+py -m http.server 8080
+```
 
-Live refresh uses overlap protection, 30-second polling, page-visibility awareness, immediate reconnect refresh, and bounded fetch waits so failed detail requests do not leave the UI spinning forever.
+Then open:
 
-Game detail normalization can surface actionable broadcaster links such as game-specific LiveBarn URLs. Generic LiveBarn pages are not presented as game-specific watch links. Known surface IDs can also be used to infer venue links.
+- `http://localhost:8080/`
+- `http://localhost:8080/app/`
 
-Append `?debug=1` to the app URL to open the diagnostics panel. It shows polling/error/broadcast state and includes a local fixture replay that walks a fake game through scheduled → live score changes → final. Replay data is local and never writes to GameSheet.
+## Useful scripts
 
-## Help and feedback
+```bash
+npm run check
+npm test
+npm run build
+npm run verify
+npm run probe:schema
+```
 
-The **?** button in the app opens quick help and links to the full [FAQ](FAQ.md). It also offers two ways to send feedback:
+`probe:schema` is intended for explicit schema research and may use live public endpoints. Normal CI/fixture tests do not depend on live GameSheet access.
 
-- **Build a report in the app:** enter a plain-language summary and description. MyHockeyHub adds basic app context and opens a pre-filled GitHub issue for review.
-- **Use the guided GitHub form:** a short issue form asks only for useful information; no deep technical knowledge is expected.
+## Deployment
 
-The static app does not upload screenshots directly to GitHub. After GitHub opens, users can paste or drag images into the issue before submitting. A GitHub account is required to submit an issue.
+Production uses the native GitHub Pages Actions deployment workflow in `.github/workflows/pages-production.yml`.
 
-## Privacy and local data
+Pull requests use `.github/workflows/pr-preview.yml` to publish a branch preview under the repository's preview path for browser/device testing.
 
-MyHockeyHub has no user accounts or application database. Preferences such as selected season, My Teams, favorite venues, followed players, and theme are stored in the browser with `localStorage`. They are device/browser specific and disappear if site data is cleared.
+The build intentionally keeps the production application static and serverless.
 
-The optional feedback report can include basic context such as app version, current view, league/season, page URL, browser description, and viewport size. It does **not** include saved teams, followed players, or other personal preferences.
+## History
 
-## Prototype archive
+The repository began as a sequence of standalone HTML prototypes. Those historical versions remain available through Git history and the GitHub release/tag:
 
-The final pre-app-shell repository state is preserved at the `prototype-version-archive` release/tag. That snapshot contains the historical standalone V1–V3.6 files and the old version-history page.
+`prototype-version-archive`
 
-## Data quality
+The final standalone prototype snapshot is commit:
 
-MyHockeyHub reflects public source data. Youth-hockey records can occasionally be incomplete, duplicated, stale, or incorrectly left in a Live state. MyHockeyHub may infer presentation state (for example, treating a Live game older than 24 hours as stale), but it does not rewrite the source record.
+`bdbb49d93bf8dd838278b95781901d74563350d7`
 
-## License
+## Independence
 
-This project is licensed under the [MIT License](LICENSE).
-
-GameSheet, team names, team logos, and league data remain the property of their respective owners. Their appearance here is for identification and display of publicly available sports information.
+MyHockeyHub is an independent personal viewer using public GameSheet data. It is not affiliated with, endorsed by, sponsored by, or operated by GameSheet.
