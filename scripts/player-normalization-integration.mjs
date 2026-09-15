@@ -78,6 +78,21 @@ replaceFunctionContaining('Player game detail unavailable', ({ name }) => `async
 
 replaceFunctionContaining('photo:a.photoURL||""', ({ name }) => `function ${name}(e,t){return window.MyHockeyHubPlayerNormalization.normalizePlayer(e,{team:t||{},teamId:t?.id,division:t?.division||{},divisionId:t?.division?.id})}`);
 
+const playerHeader = '<th>Team</th><th>Player</th><th>#</th><th>G</th>';
+if (!code.includes(playerHeader)) throw new Error('Could not find game-stats player table header.');
+code = code.replace(playerHeader, '<th>Team</th><th>Player</th><th>Pos</th><th>#</th><th>G</th>');
+
+const playerRowPattern = /<td>\$\{([A-Za-z_$][\w$]*)\(([A-Za-z_$][\w$]*)\.number\|\|\2\.jersey\|\|""\)\}<\/td><td>\$\{\1\(\2\.g\?\?0\)\}<\/td>/;
+const playerRowMatch = code.match(playerRowPattern);
+if (!playerRowMatch) throw new Error('Could not find game-stats player number/stat cells.');
+const [, escapeFn, playerVar] = playerRowMatch;
+const expr = value => '${' + value + '}';
+code = code.replace(playerRowPattern,
+  `<td>${expr(`${escapeFn}(window.MyHockeyHubPlayerNormalization.positionCode(${playerVar}.position,${playerVar}.kind))`)}</td>` +
+  `<td>${expr(`${escapeFn}(${playerVar}.number||${playerVar}.jersey||"")`)}</td>` +
+  `<td>${expr(`${escapeFn}(${playerVar}.g??0)`)}</td>`
+);
+
 const { code: minified } = await transform(code, {
   loader: 'js',
   minify: true,
@@ -85,4 +100,4 @@ const { code: minified } = await transform(code, {
 });
 await writeFile(appPath, minified);
 
-console.log('Routed player standings, roster fallback, player events, recent activity, dedupe, and stats-player registration through MyHockeyHubPlayerNormalization.');
+console.log('Routed player standings, roster fallback, player events, recent activity, dedupe, stats-player registration, and game-stats position labels through MyHockeyHubPlayerNormalization.');
