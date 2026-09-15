@@ -50,6 +50,41 @@ test('canonicalizes hockey positions for display and shorthand',()=>{
   assert.equal(normalize.positionCode('', 'skater'),'S');
 });
 
+test('derives save percentage from shots against and goals against',()=>{
+  const goalie=normalize.normalizeStandingPlayer({
+    player:{id:'40',firstName:'Save',lastName:'Goalie',position:'Goalie'},
+    stats:{sa:30,ga:2,min:'48:00',gaa:2}
+  },{kind:'goalie',divisionId:'12'});
+  assert.equal(goalie.saves,28);
+  assert.equal(goalie.svPct,28/30);
+});
+
+test('derives missing GAA from goals against, minutes, and inferred division game length',()=>{
+  const rows=normalize.completeGoalieMetrics([
+    normalize.normalizeStandingPlayer({
+      player:{id:'41',firstName:'Reference',lastName:'Goalie',position:'Goalie'},
+      stats:{ga:2,sa:30,min:'48:00',gaa:2}
+    },{kind:'goalie',divisionId:'12'}),
+    normalize.normalizeStandingPlayer({
+      player:{id:'42',firstName:'Partial',lastName:'Goalie',position:'Goalie'},
+      stats:{ga:1,sa:7,min:'20:00',svPct:.857142857}
+    },{kind:'goalie',divisionId:'12'})
+  ]);
+  const partial=rows.find(player=>player.id==='42');
+  assert.ok(Math.abs(partial.gaa-2.4)<1e-9);
+  assert.ok(Math.abs(partial.svPct-(6/7))<1e-9);
+});
+
+test('game scope can infer standard length from combined goalie minutes',()=>{
+  const rows=normalize.completeGoalieMetrics([
+    {id:'50',name:'One',kind:'goalie',position:'Goalie',teamId:'V',divisionId:'12',ga:1,sa:13,saves:12,minutes:'24:00',gaa:'—',svPct:'—'},
+    {id:'51',name:'Two',kind:'goalie',position:'Goalie',teamId:'V',divisionId:'12',ga:2,sa:14,saves:12,minutes:'24:00',gaa:'—',svPct:'—'}
+  ],{scope:'game'});
+  assert.equal(rows[0].gameLength,48);
+  assert.equal(rows[0].gaa,2);
+  assert.equal(rows[1].gaa,4);
+});
+
 test('preserves standing-row numeric defaults while using the stable player shape',()=>{
   const player=normalize.normalizeStandingPlayer({
     player:{id:'30',firstName:'Taylor',lastName:'Skater',teamId:'V'},
