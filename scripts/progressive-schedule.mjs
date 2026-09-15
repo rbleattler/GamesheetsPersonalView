@@ -29,6 +29,8 @@ const [
 
 const replacement = `const __mhScheduleBatchSize=30;
 let __mhSchedulePage={games:[],rendered:0,observer:null,loading:false};
+function __mhScheduleGameKey(g){return String(g?.gameId??(String(g?.timeStampZulu||"")+"|"+String(g?.home?.id||"")+"|"+String(g?.visitor?.id||"")))}
+function __mhSameScheduleGames(a,b){return a.length===b.length&&a.every((g,i)=>__mhScheduleGameKey(g)===__mhScheduleGameKey(b[i]))}
 function __mhStopScheduleObserver(){if(__mhSchedulePage.observer){__mhSchedulePage.observer.disconnect();__mhSchedulePage.observer=null}}
 function __mhAppendScheduleBatch(){
   if(__mhSchedulePage.loading)return;
@@ -72,13 +74,25 @@ function __mhAppendScheduleBatch(){
 function ${refreshFn}(){
   const games=${scheduleGamesFn}(),count=${selectorFn}("#scheduleCount"),root=${selectorFn}("#scheduleGames");
   if(count)count.textContent=games.length+" games";
+  const preserveCount=__mhSameScheduleGames(__mhSchedulePage.games,games)?__mhSchedulePage.rendered:0;
   __mhStopScheduleObserver();
   __mhSchedulePage={games,rendered:0,observer:null,loading:false};
-  if(root){root.innerHTML="";__mhAppendScheduleBatch()}
+  if(root){
+    root.innerHTML="";
+    const target=Math.max(__mhScheduleBatchSize,preserveCount);
+    do{__mhAppendScheduleBatch()}while(__mhSchedulePage.rendered<Math.min(target,games.length));
+  }
   ${pollLiveFn}();
 }`;
 
 code = code.replace(original, replacement);
+
+const completedResultsPattern = /\.filter\(([A-Za-z_$][\w$]*)=>([A-Za-z_$][\w$]*)\(\1\)==="final"\)\.sort\(/g;
+const completedMatches = [...code.matchAll(completedResultsPattern)];
+if (completedMatches.length !== 1) {
+  throw new Error(`Expected exactly one literal-final Recent Results filter, found ${completedMatches.length}.`);
+}
+code = code.replace(completedResultsPattern, (_whole, gameVar) => `.filter(${gameVar}=>window.MyHockeyHubTeamNormalization.isCompletedGame(${gameVar})).sort(`);
 
 const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const cardName = escapeRegExp(gameCardFn);
