@@ -4,9 +4,9 @@
   "version": "4.0.0",
   "type": "module",
   "scripts": {
-    "check": "node --check scripts/build.mjs && node --check scripts/progressive-schedule.mjs && node --check scripts/finalize-static.mjs && node --check scripts/verify-build.mjs && node --check scripts/schema-probe.mjs && node --check src/app/fetch-guard.js && node --check src/app/router.js && node --check src/app/venue-links.js && node --check src/app/card-actions.js && node --check src/app/game-normalization.js && node --check src/app/foundation.js && node --check src/app/diagnostics.js && node --check tests/foundation.test.mjs && node --check tests/game-normalization.test.mjs",
+    "check": "node --check scripts/build.mjs && node --check scripts/finalize-static.mjs && node --check scripts/verify-build.mjs && node --check scripts/schema-probe.mjs && node --check src/app/fetch-guard.js && node --check src/app/router.js && node --check src/app/venue-links.js && node --check src/app/card-actions.js && node --check src/app/game-normalization.js && node --check src/app/player-normalization.js && node --check src/app/foundation.js && node --check src/app/diagnostics.js && node --check tests/foundation.test.mjs && node --check tests/game-normalization.test.mjs && node --check tests/player-normalization.test.mjs",
     "test": "node --test tests/*.test.mjs",
-    "build": "node scripts/build.mjs && node scripts/progressive-schedule.mjs && node scripts/finalize-static.mjs",
+    "build": "node scripts/build.mjs && node scripts/finalize-static.mjs",
     "verify": "node scripts/verify-build.mjs",
     "probe:schema": "node scripts/schema-probe.mjs"
   },
