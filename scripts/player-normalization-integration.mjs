@@ -11,6 +11,78 @@ const stateMatch = code.match(/,([A-Za-z_$][\w$]*)=\{seasonId:localStorage\.getI
 if (!stateMatch) throw new Error('Could not identify the minified app state object.');
 const state = stateMatch[1];
 
+// Minimal JS-aware scanner used only to find the END of a function reliably.
+// Scanning forward for "the next `function` keyword" (the previous approach)
+// silently swallows any non-function statements sitting between the target
+// function and whatever function happens to follow it in the minified output
+// (e.g. top-level `const` declarations) -- those bytes get deleted along with
+// the function they get merged into. Real brace/string/template/regex-aware
+// matching from the function's own opening `{` does not have that failure mode.
+function skipStringLiteral(text, index, quote) {
+  let i = index + 1;
+  while (i < text.length) {
+    if (text[i] === '\\') { i += 2; continue; }
+    if (text[i] === quote) return i + 1;
+    i++;
+  }
+  return text.length;
+}
+
+function skipTemplateLiteral(text, index) {
+  let i = index + 1;
+  while (i < text.length) {
+    if (text[i] === '\\') { i += 2; continue; }
+    if (text[i] === '`') return i + 1;
+    if (text[i] === '$' && text[i + 1] === '{') { i = skipBalancedBraces(text, i + 1); continue; }
+    i++;
+  }
+  return text.length;
+}
+
+function looksLikeRegexContext(text, index) {
+  let j = index - 1;
+  while (j >= 0 && /\s/.test(text[j])) j--;
+  if (j < 0) return true;
+  const ch = text[j];
+  if (/[A-Za-z0-9_$)\]]/.test(ch)) {
+    const word = text.slice(0, j + 1).match(/([A-Za-z_$][\w$]*)$/);
+    return !!(word && ['return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete', 'void', 'throw', 'case', 'do', 'else', 'yield', 'await'].includes(word[1]));
+  }
+  return true;
+}
+
+function skipRegexLiteral(text, index) {
+  let i = index + 1;
+  let inClass = false;
+  while (i < text.length) {
+    if (text[i] === '\\') { i += 2; continue; }
+    if (text[i] === '[') { inClass = true; i++; continue; }
+    if (text[i] === ']') { inClass = false; i++; continue; }
+    if (text[i] === '/' && !inClass) { i++; break; }
+    i++;
+  }
+  while (i < text.length && /[a-z]/i.test(text[i])) i++;
+  return i;
+}
+
+// `openBraceIndex` must point at a '{'. Returns the index just past its
+// matching '}', correctly skipping over string/template/regex literal
+// contents so braces inside them are never mistaken for real block braces.
+function skipBalancedBraces(text, openBraceIndex) {
+  let i = openBraceIndex + 1;
+  let depth = 1;
+  while (i < text.length && depth > 0) {
+    const ch = text[i];
+    if (ch === '"' || ch === "'") { i = skipStringLiteral(text, i, ch); continue; }
+    if (ch === '`') { i = skipTemplateLiteral(text, i); continue; }
+    if (ch === '/' && looksLikeRegexContext(text, i)) { i = skipRegexLiteral(text, i); continue; }
+    if (ch === '{') { depth++; i++; continue; }
+    if (ch === '}') { depth--; i++; continue; }
+    i++;
+  }
+  return i;
+}
+
 function functionBoundsContaining(fragment) {
   const index = code.indexOf(fragment);
   if (index < 0) throw new Error(`Could not find player integration marker: ${fragment}`);
@@ -25,10 +97,8 @@ function functionBoundsContaining(fragment) {
   const signatureMatch = signature.match(/^function ([A-Za-z_$][\w$]*)\(([^)]*)\)$/);
   if (!signatureMatch) throw new Error(`Could not parse function signature for marker: ${fragment}`);
 
-  const tail = code.slice(index + fragment.length);
-  const nextMatch = tail.match(/(?:async )?function [A-Za-z_$][\w$]*\(/);
-  if (!nextMatch || nextMatch.index == null) throw new Error(`Could not find function boundary after marker: ${fragment}`);
-  const end = index + fragment.length + nextMatch.index;
+  const end = skipBalancedBraces(code, signatureEnd);
+  if (index + fragment.length > end) throw new Error(`Marker fell outside its own function body: ${fragment}`);
 
   return {
     start,

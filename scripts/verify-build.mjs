@@ -92,6 +92,8 @@ for (const method of ['seasonInfo','seasonDivisions','unifiedGames','skaterStand
 }
 if (!appJs.includes('MyHockeyHubLiveService')) throw new Error('App bundle is not exposing the shared live-refresh service.');
 if (!appJs.includes('MyHockeyHubDebug')) throw new Error('Preview diagnostics adapter was not emitted.');
+if (!appJs.includes('github.com/rbleattler/GamesheetsPersonalView') || !appJs.includes('/blob/main/FAQ.md') || !appJs.includes('myhockeyhub-feedback.yml')) throw new Error('Help/feedback GitHub links are missing -- a build-script boundary-detection regression can silently delete top-level consts sitting between two patched functions.');
+if (!appJs.includes('Send feedback') || !appJs.includes('Help & feedback')) throw new Error('Help/feedback drawer content is missing.');
 if (!foundationJs.includes('MyHockeyHubFoundation') || !foundationJs.includes('addEventListener') || !foundationJs.includes('"online"') || !foundationJs.includes('createController') || !foundationJs.includes('firestoreGame')) throw new Error('Foundation API/live/replay support was not emitted correctly.');
 if (!diagnosticsJs.includes('myhockeyhub.debug') || !diagnosticsJs.includes('live-replay.json')) throw new Error('Diagnostics/replay bundle was not emitted correctly.');
 
