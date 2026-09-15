@@ -247,13 +247,20 @@
   function dedupePlayers(players) {
     const useful = value => value !== '' && value != null && value !== '—';
     const richness = value => Object.values(value || {}).filter(useful).length;
+    const specificPosition = position => ['Goalie', 'Defense', 'Forward'].includes(position);
     const merge = (preferred, fallback) => {
       const merged = { ...preferred };
       for (const [key, value] of Object.entries(fallback || {})) {
         if (!useful(merged[key]) && useful(value)) merged[key] = value;
       }
-      merged.position = canonicalPosition(merged.position, merged.kind);
-      if (!merged.position) merged.position = canonicalPosition('', merged.kind);
+      const preferredPosition = canonicalPosition(preferred?.position, preferred?.kind);
+      const fallbackPosition = canonicalPosition(fallback?.position, fallback?.kind);
+      merged.position = specificPosition(preferredPosition)
+        ? preferredPosition
+        : specificPosition(fallbackPosition)
+          ? fallbackPosition
+          : preferredPosition || fallbackPosition || canonicalPosition('', merged.kind);
+      if (merged.position === 'Goalie') merged.kind = 'goalie';
       return merged;
     };
 
