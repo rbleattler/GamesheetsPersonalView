@@ -76,7 +76,7 @@ appJs = appJs.replace(liveSnapshotMarker, 'd=firestoreData(await fetchJson(u)),e
 
 const statsFetchMarker = 'd=firestoreData(await fetchJson(u));renderStats(g,boxFromFirestore(g,d))';
 if (!appJs.includes(statsFetchMarker)) throw new Error('Expected V3.6 stats fetch marker was not found.');
-appJs = appJs.replace(statsFetchMarker, 'd=firestoreData(await fetchJson(u)),enriched=window.MyHockeyHubFoundation.normalize.enrichGameBroadcast(g,d);Object.assign(g,enriched);renderStats(g,boxFromFirestore(g,d))');
+appJs = appJs.replace(statsFetchMarker, 'raw=await fetchJson(u),d=firestoreData(raw),enriched=window.MyHockeyHubFoundation.normalize.enrichGameBroadcast(g,d),legacyBox=boxFromFirestore(g,d),normalizedBox=window.MyHockeyHubGameNormalization.gameBoxFromFirestore(g,raw);Object.assign(g,enriched);if(JSON.stringify(legacyBox)!==JSON.stringify(normalizedBox)){console.warn(\'Game normalization parity mismatch\',{gameId:g.gameId,legacy:legacyBox,normalized:normalizedBox});window.MyHockeyHubNormalizationParity={gameId:String(g.gameId),match:false}}else window.MyHockeyHubNormalizationParity={gameId:String(g.gameId),match:true};renderStats(g,normalizedBox)');
 
 const pollerPattern = /async function pollLive\(\)\{[\s\S]*?\}\s*function startPolling\(\)\{[\s\S]*?\}\s*function updateStatus\(\)\{/;
 if (!pollerPattern.test(appJs)) throw new Error('Expected V3.6 live poller was not found.');
@@ -94,29 +94,180 @@ const visibilityHook = "document.addEventListener('visibilitychange',()=>{if(!do
 if (!appJs.includes(visibilityHook)) throw new Error('Expected V3.6 live-refresh visibility hook was not found.');
 appJs = appJs.replace(visibilityHook, '');
 
+const registerPlayerMarker = "function registerPlayer(p){if(!p?.id)return p;const id=String(p.id),old=state.playerRegistry[id]||{};state.playerRegistry[id]={...old,...p,id};return state.playerRegistry[id]}";
+if (!appJs.includes(registerPlayerMarker)) throw new Error('Expected V3.6 registerPlayer implementation was not found.');
+appJs = appJs.replace(registerPlayerMarker, "function registerPlayer(p,scope='season'){if(!p?.id)return p;const id=String(p.id),old=state.playerRegistry[id]||{};const merged=window.MyHockeyHubPlayerNormalization.mergePlayerRecord(old,p,{scope});state.playerRegistry[id]=merged;return merged}");
+
+const inlinePlayerLinkRegisterMarker = 'registerPlayer(statsPlayerRecord(p,team));';
+if (!appJs.includes(inlinePlayerLinkRegisterMarker)) throw new Error('Expected V3.6 inlinePlayerLink registration was not found.');
+appJs = appJs.replace(inlinePlayerLinkRegisterMarker, "registerPlayer(statsPlayerRecord(p,team),'game');");
+
+const renderStatsRegisterMarker = "for(const side of ['visitor','home'])for(const p of (b?.[side]?.roster?.players||[]))registerPlayer(statsPlayerRecord(p,b[side]));";
+if (!appJs.includes(renderStatsRegisterMarker)) throw new Error('Expected V3.6 renderStats registration was not found.');
+appJs = appJs.replace(renderStatsRegisterMarker, "for(const side of ['visitor','home'])for(const p of (b?.[side]?.roster?.players||[]))registerPlayer(statsPlayerRecord(p,b[side]),'game');");
+
+const playerCardGaaMarker = "esc(p.gaa??'—')";
+if (!appJs.includes(playerCardGaaMarker)) throw new Error('Expected V3.6 player-card GAA formatting was not found.');
+appJs = appJs.replace(playerCardGaaMarker, "esc(window.MyHockeyHubPlayerNormalization.formatGaa(p.gaa))");
+
+const playerCardSvPctMarker = "esc(p.svPct??'—')";
+if (!appJs.includes(playerCardSvPctMarker)) throw new Error('Expected V3.6 player-card SV% formatting was not found.');
+appJs = appJs.replace(playerCardSvPctMarker, "esc(window.MyHockeyHubPlayerNormalization.formatSvPct(p.svPct))");
+
+const playerDetailGaaMarker = "sbox('GAA',p.gaa??'—')";
+if (!appJs.includes(playerDetailGaaMarker)) throw new Error('Expected V3.6 player-detail GAA formatting was not found.');
+appJs = appJs.replace(playerDetailGaaMarker, "sbox('GAA',window.MyHockeyHubPlayerNormalization.formatGaa(p.gaa))");
+
+const playerDetailSvPctMarker = "sbox('SV%',p.svPct??'—')";
+if (!appJs.includes(playerDetailSvPctMarker)) throw new Error('Expected V3.6 player-detail SV% formatting was not found.');
+appJs = appJs.replace(playerDetailSvPctMarker, "sbox('SV%',window.MyHockeyHubPlayerNormalization.formatSvPct(p.svPct))");
+
+const renderTeamLocalsMarker = "next=upcoming[0],div=teamDivisionTitle(t);els.teamView.innerHTML=";
+if (!appJs.includes(renderTeamLocalsMarker)) throw new Error('Expected V3.6 renderTeam locals were not found.');
+appJs = appJs.replace(renderTeamLocalsMarker, "next=upcoming[0],div=teamDivisionTitle(t),summary=window.MyHockeyHubTeamNormalization.teamSeasonSummary(t.id,state.games),teamRecordText=summary.gamesPlayed?(summary.wins+'-'+summary.losses+'-'+summary.ties):'—',teamPimPerGameText=summary.pimPerGame!=null?summary.pimPerGame.toFixed(1):'—',teamNextGame=summary.nextGame,teamNextOpponent=teamNextGame?(String(teamNextGame.home?.id)===String(t.id)?teamNextGame.visitor:teamNextGame.home):null,teamNextShortText=teamNextGame?(new Intl.DateTimeFormat(undefined,{weekday:'short'}).format(gameDate(teamNextGame))+' '+fmtTime(gameDate(teamNextGame))):'—',teamNextTitle=teamNextGame?(fmtLong(gameDate(teamNextGame))+' vs '+(teamNextOpponent?.title||'Opponent')):'No upcoming games scheduled';els.teamView.innerHTML=");
+
+const teamCardMarker = '<section class="panel hero"><div class="teamhero">${logo(t)}<div><div class="teamname">${esc(t.title)}</div><div class="muted">${esc(div)}</div></div><div class="right"><span class="pill">★ My Team</span></div></div><div class="actions"><button id="teamSchedule" class="soft">View full schedule</button><button id="teamPlayers" class="soft">Browse players</button><button id="removeTeam" class="soft danger">Remove team</button></div></section>';
+if (!appJs.includes(teamCardMarker)) throw new Error('Expected V3.6 team-card markup was not found.');
+appJs = appJs.replace(teamCardMarker, '<section class="panel hero team-dashboard-card"><div class="teamhero">${logo(t)}<div><div class="teamname">${esc(t.title)}</div><div class="muted">${esc(div)}</div></div><div class="right"><span class="pill team-badge"><span class="team-badge-label">★ My Team</span><button id="removeTeamMobile" class="team-badge-remove" type="button" aria-label="Remove team" title="Remove team"><span class="fa-icon fa-trash-can" aria-hidden="true"></span></button></span></div></div><div class="statstrip team-statstrip"><div class="stat"><b>${esc(teamRecordText)}</b><small>Record</small></div><div class="stat"><b>${esc(summary.goalsFor)}</b><small>GF</small></div><div class="stat"><b>${esc(summary.goalsAgainst)}</b><small>GA</small></div><div class="stat"><b>${esc(teamPimPerGameText)}</b><small>PIM/G</small></div><div class="stat"><b title="${escAttr(teamNextTitle)}">${esc(teamNextShortText)}</b><small>Next</small></div></div><div class="team-card-actions"><button id="teamSchedule" class="soft team-action-btn"><span class="fa-icon fa-calendar-days" aria-hidden="true"></span><span class="btn-text">Schedule</span></button><button id="teamRoster" class="soft team-action-btn"><span class="fa-icon fa-users" aria-hidden="true"></span><span class="btn-text">Roster</span></button><button id="teamStatsBtn" class="soft team-action-btn"><span class="fa-icon fa-chart-line" aria-hidden="true"></span><span class="btn-text">Stats</span></button><button id="removeTeam" class="soft danger team-action-btn team-remove-btn" aria-label="Remove team" title="Remove team"><span class="fa-icon fa-trash-can" aria-hidden="true"></span><span class="btn-text">Remove</span></button></div></section>');
+
+const myTeamSwitcherMarker = '<div class="my-team-switcher">${teams.map(x=>`<button class="chip my-team-chip ${String(x.id)===String(t.id)?\'active\':\'\'}" data-team-switch="${escAttr(x.id)}">${esc(x.title)}${teamDivisionTitle(x)?` · ${esc(teamDivisionTitle(x))}`:\'\'}</button>`).join(\'\')}<button id="addAnotherTeam" class="chip">＋ Add</button></div>';
+if (!appJs.includes(myTeamSwitcherMarker)) throw new Error('Expected V3.6 my-team-switcher markup was not found.');
+appJs = appJs.replace(myTeamSwitcherMarker, '<div class="my-team-switcher"><select id="myTeamSwitcher" class="my-team-switcher-select" aria-label="Switch team">${teams.map(x=>`<option value="${escAttr(x.id)}" ${String(x.id)===String(t.id)?\'selected\':\'\'}>${esc(x.title)}${teamDivisionTitle(x)?` · ${esc(teamDivisionTitle(x))}`:\'\'}</option>`).join(\'\')}</select><div class="my-team-switcher-pills">${teams.map(x=>`<button class="chip my-team-chip ${String(x.id)===String(t.id)?\'active\':\'\'}" data-team-switch="${escAttr(x.id)}">${esc(x.title)}${teamDivisionTitle(x)?` · ${esc(teamDivisionTitle(x))}`:\'\'}</button>`).join(\'\')}</div><button id="addAnotherTeam" class="chip">＋ Add</button></div>');
+
+const teamSwitchWireMarker = "querySelectorAll('[data-team-switch]').forEach(b=>b.onclick=()=>{setActiveMyTeam(b.dataset.teamSwitch);renderTeam()});$('#manageTeams').onclick=openManageTeams;";
+if (!appJs.includes(teamSwitchWireMarker)) throw new Error('Expected V3.6 team-switch wiring was not found.');
+appJs = appJs.replace(teamSwitchWireMarker, "querySelectorAll('[data-team-switch]').forEach(b=>b.onclick=()=>{setActiveMyTeam(b.dataset.teamSwitch);renderTeam()});if($('#myTeamSwitcher'))$('#myTeamSwitcher').onchange=()=>{setActiveMyTeam($('#myTeamSwitcher').value);renderTeam()};$('#manageTeams').onclick=openManageTeams;");
+
+const eventDetailGameSheetLinkMarker = '<div class="actions"><a class="link" target="_blank" rel="noopener" href="${escAttr(gs)}">Open game on GameSheet ↗</a></div>';
+const eventDetailGameSheetLinkCount = appJs.split(eventDetailGameSheetLinkMarker).length - 1;
+if (eventDetailGameSheetLinkCount !== 2) throw new Error(`Expected exactly 2 occurrences of the expanded-event GameSheet link, found ${eventDetailGameSheetLinkCount}.`);
+appJs = appJs.split(eventDetailGameSheetLinkMarker).join('');
+
+const eventSecondaryMarker = "function eventSecondary(e){if(e._type==='goal'){const a=[e.assist1By,e.assist2By].filter(x=>x&&(x.firstName||x.lastName||x.title));return a.length?`A: ${a.map(p=>pname(p)).join(', ')}`:'Unassisted'}const d=e.penaltyType?.duration?` · ${e.penaltyType.duration} min`:'';return`${e.penaltyType?.title||'Penalty'}${d}`}";
+if (!appJs.includes(eventSecondaryMarker)) throw new Error('Expected V3.6 event-secondary helper was not found.');
+const integratedTimelineHelpers = `function eventTeamLabel(side){
+  const t=state._statsBox?.[side];
+  if(!t)return'';
+  const c=teamColor(t);
+  return \`<span class="ev-team"\${c?\` style="color:\${escAttr(c)}"\`:''}>\${esc(abbr(t))}</span>\`
+}
+function eventSecondaryHtml(e){
+  if(e._type==='goal'){
+    const a=[e.assist1By,e.assist2By].filter(x=>x&&(x.firstName||x.lastName||x.title));
+    return a.length?\`<span class="ev-lbl">A</span> \${esc(a.map(p=>pname(p)).join(', '))}\`:'Unassisted'
+  }
+  const d=e.penaltyType?.duration;
+  return esc(d?(e.penaltyType?.title||'Penalty'):eventSecondary(e))
+}`;
+appJs = appJs.replace(eventSecondaryMarker, `${eventSecondaryMarker}\n${integratedTimelineHelpers}`);
+
+const legacyTimelineStart = "function timelineHtml(b,g,mode='all'){let items=timelineEvents(b);";
+const legacyTimelineEmoji = "icon=e._type==='goal'?'🚨':'⚠️';";
+const timelineEndMarker = '\nfunction boxScoreHtml';
+const timelineStartIndex = appJs.indexOf(legacyTimelineStart);
+const timelineEndIndex = appJs.indexOf(timelineEndMarker, timelineStartIndex);
+if (timelineStartIndex < 0 || timelineEndIndex < 0 || !appJs.includes(legacyTimelineEmoji)) throw new Error('Expected V3.6 emoji timeline implementation was not found.');
+const integratedTimelineHtml = `function timelineHtml(b,g,mode='all'){
+  let items=timelineEvents(b);
+  if(mode==='goal')items=items.filter(e=>e._type==='goal');
+  if(mode==='penalty')items=items.filter(e=>e._type==='penalty');
+  if(!items.length)return'<div class="empty" style="padding:18px">No events reported.</div>';
+  const groups=new Map();
+  for(const e of items){const p=e.periodLabel||e.period||'';if(!groups.has(p))groups.set(p,[]);groups.get(p).push(e)}
+  let idx=0;
+  return \`<div class="timeline timeline-integrated">\${[...groups.entries()].map(([p,events],gi)=>{
+    const pid=\`per-\${mode}-\${gi}\`,
+      meta=mode==='penalty'?\`\${events.length} \${events.length===1?'event':'events'}\`:esc(periodGoalScore(b,p));
+    return \`<section class="period-block" data-period="\${escAttr(p)}"><button class="period-head" type="button" aria-expanded="true" aria-controls="\${pid}" data-period-toggle><span>\${esc(periodLabelNice(p))}</span><span class="pscore">\${meta}</span><span class="pchev fa-icon fa-chevron-down" aria-hidden="true"></span></button><div class="timeline-items" id="\${pid}">\${events.map(e=>{
+      const id=\`evt-\${mode}-\${idx++}\`,
+        isGoal=e._type==='goal',
+        player=isGoal?e.goalScorer:e.committedBy,
+        icon=isGoal?'fa-hockey-puck':'fa-stopwatch',
+        chip=isGoal
+          ?(e.scoreAfter?\`<span class="ev-after">\${esc(e.scoreAfter)}</span>\`:'')
+          :(e.penaltyType?.duration?\`<span class="ev-after ev-pim">\${esc(e.penaltyType.duration)}</span>\`:'');
+      return \`<div class="timeline-event" role="button" tabindex="0" aria-expanded="false" data-target="\${id}"><div class="timeline-time">\${esc(e.time||'')}</div><div class="ev-icon \${isGoal?'ev-goal':'ev-pen'}"><span class="fa-icon \${icon}" aria-hidden="true"></span></div><div class="ev-main"><div class="ev-primary">\${eventTeamLabel(e.teamSide)}<span class="ev-name">\${inlinePlayerLink(player,e.teamSide)}</span></div><div class="ev-sec">\${eventSecondaryHtml(e)}</div></div>\${chip}<span class="timeline-chevron fa-icon fa-chevron-down" aria-hidden="true"></span></div><div id="\${id}" class="timeline-detail" hidden>\${eventDetailHtml(e,g)}</div>\`
+    }).join('')}</div></section>\`
+  }).join('')}</div>\`
+}`;
+appJs = `${appJs.slice(0, timelineStartIndex)}${integratedTimelineHtml}${appJs.slice(timelineEndIndex)}`;
+
+const wireTimelineMarker = "function wireTimeline(root){root.querySelectorAll('.timeline-event').forEach(row=>{const toggle=()=>{const panel=document.getElementById(row.dataset.target),open=row.getAttribute('aria-expanded')==='true';row.setAttribute('aria-expanded',String(!open));if(panel)panel.hidden=open};row.onclick=e=>{if(e.target.closest('.player-link,a,button'))return;toggle()};row.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&!e.target.closest('.player-link,a,button')){e.preventDefault();toggle()}}})}";
+if (!appJs.includes(wireTimelineMarker)) throw new Error('Expected V3.6 timeline event wiring was not found.');
+const integratedTimelineWire = "function wireTimeline(root){root.querySelectorAll('[data-period-toggle]').forEach(btn=>{btn.onclick=()=>{const block=btn.closest('.period-block'),collapsed=block.classList.toggle('collapsed');btn.setAttribute('aria-expanded',String(!collapsed))}});root.querySelectorAll('.timeline-event').forEach(row=>{const toggle=()=>{const panel=document.getElementById(row.dataset.target),open=row.getAttribute('aria-expanded')==='true';row.setAttribute('aria-expanded',String(!open));if(panel)panel.hidden=open};row.onclick=e=>{if(e.target.closest('.player-link,a,button'))return;toggle()};row.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&!e.target.closest('.player-link,a,button')){e.preventDefault();toggle()}}})}";
+appJs = appJs.replace(wireTimelineMarker, integratedTimelineWire);
+
+const playerTeamTabsWireMarker = "wireTimeline(els.drawerBody)}";
+if (!appJs.includes(playerTeamTabsWireMarker)) throw new Error('Expected V3.6 renderStats tab wiring was not found.');
+appJs = appJs.replace(playerTeamTabsWireMarker, "wireTimeline(els.drawerBody);els.drawerBody.querySelectorAll('.team-tab-btn').forEach(btn=>btn.onclick=()=>{els.drawerBody.querySelectorAll('.team-tab-btn').forEach(x=>x.classList.toggle('active',x===btn));els.drawerBody.querySelectorAll('.team-tab-pane').forEach(x=>x.classList.toggle('active',x.dataset.teamPane===btn.dataset.teamTab))})}");
+
+const removeTeamWireMarker = "$('#removeTeam').onclick=()=>{if(window.confirm(`Remove ${t.title} from My Teams?`)){removeMyTeam(t.id);renderTeam()}};";
+if (!appJs.includes(removeTeamWireMarker)) throw new Error('Expected V3.6 removeTeam wiring was not found.');
+appJs = appJs.replace(removeTeamWireMarker, "const confirmRemoveTeam=()=>{if(window.confirm(`Remove ${t.title} from My Teams?`)){removeMyTeam(t.id);renderTeam()}};$('#removeTeam').onclick=confirmRemoveTeam;if($('#removeTeamMobile'))$('#removeTeamMobile').onclick=confirmRemoveTeam;");
+
+const teamRosterWireMarker = "$('#teamPlayers').onclick=()=>{state.playerRosterTeamId=t.id;state.playerMode='team';setView('players')}}";
+if (!appJs.includes(teamRosterWireMarker)) throw new Error('Expected V3.6 team-roster wiring was not found.');
+appJs = appJs.replace(teamRosterWireMarker, "$('#teamRoster').onclick=()=>{state.playerRosterTeamId=t.id;state.playerMode='team';setView('players')};$('#teamStatsBtn').onclick=()=>openTeamStats(t.id)}");
+
+const renderTeamDefMarker = 'function renderTeam(){';
+if (!appJs.includes(renderTeamDefMarker)) throw new Error('Expected V3.6 renderTeam definition was not found.');
+appJs = appJs.replace(renderTeamDefMarker, "function openTeamStats(teamId){const t=state.teams.find(x=>String(x.id)===String(teamId));if(!t)return;const summary=window.MyHockeyHubTeamNormalization.teamSeasonSummary(t.id,state.games),record=summary.gamesPlayed?`${summary.wins}-${summary.losses}-${summary.ties}`:'—',streakText=summary.streak.result?`${summary.streak.result}${summary.streak.count}`:'—',nextGame=summary.nextGame,nextOpponent=nextGame?(String(nextGame.home?.id)===String(t.id)?nextGame.visitor:nextGame.home):null,nextText=nextGame?`${fmtLong(gameDate(nextGame))} vs ${nextOpponent?.title||'Opponent'}`:'No upcoming games scheduled',homeRecord=`${summary.home.wins}-${summary.home.losses}-${summary.home.ties}`,awayRecord=`${summary.away.wins}-${summary.away.losses}-${summary.away.ties}`,sogSection=summary.sog!=null?`<div class=\"statssection\"><h3>Shots</h3><div class=\"statsgrid\">${sbox('SOG',summary.sog)}${sbox('SOG/G',summary.sogPerGame.toFixed(1))}</div></div>`:'';openDrawer('Team Stats',t.title,`<div class=\"statssection\"><h3>Season</h3><div class=\"statsgrid\">${sbox('Record',record)}${sbox('Games Played',summary.gamesPlayed)}${sbox('GF',summary.goalsFor)}${sbox('GA',summary.goalsAgainst)}${sbox('GF/G',summary.goalsForPerGame!=null?summary.goalsForPerGame.toFixed(2):'—')}${sbox('GA/G',summary.goalsAgainstPerGame!=null?summary.goalsAgainstPerGame.toFixed(2):'—')}${sbox('PIM',summary.pim??'—')}${sbox('PIM/G',summary.pimPerGame!=null?summary.pimPerGame.toFixed(1):'—')}</div></div>${sogSection}<div class=\"statssection\"><h3>Home / Away</h3><div class=\"statsgrid\">${sbox('Home',homeRecord)}${sbox('Home GF-GA',`${summary.home.goalsFor}-${summary.home.goalsAgainst}`)}${sbox('Away',awayRecord)}${sbox('Away GF-GA',`${summary.away.goalsFor}-${summary.away.goalsAgainst}`)}</div></div><div class=\"statssection\"><h3>Form</h3><div class=\"statsgrid\">${sbox('Current Streak',streakText)}</div><div class=\"muted\" style=\"margin-top:9px\">${esc(nextText)}</div></div>`)}\nfunction renderTeam(){");
+
+const elsMarker = "drawerBody:$('drawerBody'),closeDrawer:$('closeDrawer')};";
+if (!appJs.includes(elsMarker)) throw new Error('Expected V3.6 els object was not found.');
+appJs = appJs.replace(elsMarker, "drawerBody:$('drawerBody'),closeDrawer:$('closeDrawer'),backDrawer:$('backDrawer')};");
+
+const drawerNavWiringMarker = "document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>setView(b.dataset.view));$('#helpBtn').onclick=openHelp;$('#menuBtn').onclick=openSettings;bindTeamDelegates();";
+if (!appJs.includes(drawerNavWiringMarker)) throw new Error('Expected V3.6 final wiring block was not found.');
+appJs = appJs.replace(drawerNavWiringMarker, `const __mhCloseDrawerOriginal=closeDrawer;
+const __mhNav=window.MyHockeyHubDrawerNavigation.createDrawerNavigation({
+  isOpen:()=>els.drawer.classList.contains('open'),
+  captureExtra:()=>{const activeTabBtn=els.drawerBody.querySelector('.tabs .tab.active');return{activeTab:activeTabBtn?activeTabBtn.dataset.tab:null,scrollTop:els.drawer.scrollTop}},
+  restoreExtra:extra=>{if(!extra)return;if(extra.activeTab){const tabButton=els.drawerBody.querySelector('.tabs .tab[data-tab="'+extra.activeTab+'"]');if(tabButton&&!tabButton.classList.contains('active'))tabButton.click()}els.drawer.scrollTop=extra.scrollTop||0},
+  onClose:()=>{__mhCloseDrawerOriginal();__mhSyncBackButton()}
+});
+function __mhSyncBackButton(){if(!els.backDrawer)return;const open=els.drawer.classList.contains('open');els.backDrawer.hidden=!open;els.backDrawer.title=__mhNav.depth()?'Back':'Back to app';els.backDrawer.setAttribute('aria-label',els.backDrawer.title)}
+function __mhWrapDrawerNav(key,fn){return function(...args){const result=__mhNav.go(key,()=>fn.apply(this,args));__mhSyncBackButton();return result}}
+openStats=__mhWrapDrawerNav('gameStats',openStats);
+openGameDetails=__mhWrapDrawerNav('gameDetails',openGameDetails);
+openPlayerDetail=__mhWrapDrawerNav('playerDetail',openPlayerDetail);
+openPlayerPicker=__mhWrapDrawerNav('addPlayers',openPlayerPicker);
+openManageTeams=__mhWrapDrawerNav('manageTeams',openManageTeams);
+openSettings=__mhWrapDrawerNav('settings',openSettings);
+openHelp=__mhWrapDrawerNav('help',openHelp);
+openFeedbackForm=__mhWrapDrawerNav('feedback',openFeedbackForm);
+openSeasonFinder=__mhWrapDrawerNav('seasonFinder',openSeasonFinder);
+openTeamStats=__mhWrapDrawerNav('teamStats',openTeamStats);
+closeDrawer=function(){__mhNav.reset();__mhCloseDrawerOriginal();__mhSyncBackButton()};
+if(els.backDrawer)els.backDrawer.onclick=()=>{__mhNav.back();__mhSyncBackButton()};
+window.MyHockeyHubDrawerNav={back:()=>__mhNav.back(),depth:()=>__mhNav.depth(),peek:()=>__mhNav.peek(),reset:()=>__mhNav.reset()};
+${drawerNavWiringMarker}`);
+
 const debugMarker = "const hasSavedSeason=!!(localStorage.getItem('gsv3.seasonId')";
 if (!appJs.includes(debugMarker)) throw new Error('Expected V3.6 startup marker was not found.');
-appJs = appJs.replace(debugMarker, `let debugReplayOriginalGames=null;window.MyHockeyHubDebug={snapshot:()=>{const broadcasts=state.games.map(g=>g?._broadcast).filter(Boolean);return{version:'4.0.0-beta.0',view:state.view,seasonId:String(state.seasonId||''),gameCount:state.games.length,liveCount:visibleLive().length,polling:!!state.polling,lastLive:state.lastLive?state.lastLive.toISOString():null,lastError:!!state.lastError,broadcastActionable:broadcasts.filter(b=>b.available).length,broadcastSuppressed:broadcasts.reduce((n,b)=>n+(b.suppressed?.length||0),0),replayActive:!!debugReplayOriginalGames}},refreshLive:()=>pollLive(),applyReplay:snapshot=>{if(!snapshot)return;liveRefreshService?.stop();if(!debugReplayOriginalGames)debugReplayOriginalGames=state.games;const g=window.MyHockeyHubFoundation.normalize.game({...snapshot,timeStampZulu:new Date().toISOString()});state.games=[g,...debugReplayOriginalGames.filter(x=>String(x.gameId)!==String(g.gameId))];buildTeams();state.view='schedule';state.schedule={division:'',team:'',rink:'',when:'all',search:'SIM-1',myTeam:false,faves:false,scheduled:false};render()},exitReplay:()=>{if(!debugReplayOriginalGames)return;state.games=debugReplayOriginalGames;debugReplayOriginalGames=null;buildTeams();render();startPolling()}};${debugMarker}`);
+appJs = appJs.replace(debugMarker, `let debugReplayOriginalGames=null;window.MyHockeyHubDebug={snapshot:()=>{const broadcasts=state.games.map(g=>g?._broadcast).filter(Boolean);return{version:'4.0.0-beta.0',view:state.view,seasonId:String(state.seasonId||''),gameCount:state.games.length,liveCount:visibleLive().length,polling:!!state.polling,lastLive:state.lastLive?state.lastLive.toISOString():null,lastError:!!state.lastError,broadcastActionable:broadcasts.filter(b=>b.available).length,broadcastSuppressed:broadcasts.reduce((n,b)=>n+(b.suppressed?.length||0),0),normalizationParity:window.MyHockeyHubNormalizationParity||null,replayActive:!!debugReplayOriginalGames}},refreshLive:()=>pollLive(),applyReplay:snapshot=>{if(!snapshot)return;liveRefreshService?.stop();if(!debugReplayOriginalGames)debugReplayOriginalGames=state.games;const g=window.MyHockeyHubFoundation.normalize.game({...snapshot,timeStampZulu:new Date().toISOString()});state.games=[g,...debugReplayOriginalGames.filter(x=>String(x.gameId)!==String(g.gameId))];buildTeams();state.view='schedule';state.schedule={division:'',team:'',rink:'',when:'all',search:'SIM-1',myTeam:false,faves:false,scheduled:false};render()},exitReplay:()=>{if(!debugReplayOriginalGames)return;state.games=debugReplayOriginalGames;debugReplayOriginalGames=null;buildTeams();render();startPolling()}};${debugMarker}`);
 
-const [routerSource, foundationSource, diagnosticsSource, siteCss, homeHtml] = await Promise.all([
+const [routerSource, foundationSource, diagnosticsSource, drawerNavigationSource, siteCss, homeHtml] = await Promise.all([
   read('src/app/router.js'),
   read('src/app/foundation.js'),
   read('src/app/diagnostics.js'),
+  read('src/app/drawer-navigation.js'),
   read('src/site.css'),
   read('src/home.html')
 ]);
-const [{ code: minCss }, { code: minJs }, { code: minRouter }, { code: minFoundation }, { code: minDiagnostics }, { code: minSiteCss }] = await Promise.all([
+const [{ code: minCss }, { code: minJs }, { code: minRouter }, { code: minFoundation }, { code: minDiagnostics }, { code: minDrawerNavigation }, { code: minSiteCss }] = await Promise.all([
   transform(appCss, { loader: 'css', minify: true }),
   transform(appJs, { loader: 'js', minify: true, target: 'es2022' }),
   transform(routerSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(foundationSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(diagnosticsSource, { loader: 'js', minify: true, target: 'es2022' }),
+  transform(drawerNavigationSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(siteCss, { loader: 'css', minify: true })
 ]);
 
 let appHtml = legacy
   .replace(styleMatch[0], '<link rel="stylesheet" href="../assets/app.css">')
-  .replace(scriptMatch[0], '<script src="../assets/foundation.js" defer></script>\n<script src="../assets/app.js" defer></script>\n<script src="../assets/router.js" defer></script>\n<script src="../assets/diagnostics.js" defer></script>')
+  .replace(scriptMatch[0], '<script src="../assets/foundation.js" defer></script>\n<script src="../assets/drawer-navigation.js" defer></script>\n<script src="../assets/app.js" defer></script>\n<script src="../assets/router.js" defer></script>\n<script src="../assets/diagnostics.js" defer></script>')
   .replace('<title>MyHockeyHub — V3.6</title>', '<title>MyHockeyHub</title>');
 
 const topActions = '<div class="top-actions"><span class="version">V3.6</span>';
@@ -131,6 +282,7 @@ await Promise.all([
   write('app/index.html', appHtml),
   write('assets/app.css', minCss),
   write('assets/foundation.js', minFoundation),
+  write('assets/drawer-navigation.js', minDrawerNavigation),
   write('assets/app.js', minJs),
   write('assets/router.js', minRouter),
   write('assets/diagnostics.js', minDiagnostics),

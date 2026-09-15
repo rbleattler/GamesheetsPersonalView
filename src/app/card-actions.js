@@ -5,9 +5,9 @@
 
   function labelIcon(kind) {
     const span = document.createElement('span');
-    span.className = `game-action-icon ${kind}`;
+    const fa = kind === 'livebarn' ? 'fa-circle-play' : 'fa-file-lines';
+    span.className = `game-action-icon fa-icon ${fa}`;
     span.setAttribute('aria-hidden', 'true');
-    if (kind === 'livebarn') span.textContent = '▶';
     return span;
   }
 
