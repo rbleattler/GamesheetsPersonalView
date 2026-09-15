@@ -22,7 +22,9 @@ const faIcons = {
   'file-lines': 'file-lines.svg',
   'circle-play': 'circle-play.svg',
   'arrow-left': 'arrow-left.svg',
-  xmark: 'xmark.svg'
+  xmark: 'xmark.svg',
+  'chart-line': 'chart-line.svg',
+  'trash-can': 'trash-can.svg'
 };
 
 const faEntries = await Promise.all(Object.entries(faIcons).map(async ([name, file]) => {
@@ -37,24 +39,28 @@ const faCssSource = [
   '.close,.drawer-back{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:1rem;border:1px solid #30485f;background:#132235;color:#fff;flex:0 0 auto}.close .fa-icon,.drawer-back .fa-icon{font-size:1rem}',
   '.drawer-title-wrap{display:flex;align-items:flex-start;gap:10px;min-width:0}.drawer-title-wrap>div{min-width:0}.drawer-back[hidden]{display:none}',
   '.player-tables{display:grid;gap:16px}.player-subtable h4{margin:0 0 7px;font-size:.82rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}.player-table-scroll{overflow:auto}.goalie-subtable{padding-top:2px;border-top:1px solid rgba(120,150,180,.14)}',
-  '@media(max-width:560px){.nav{gap:3px}.nav button{display:grid;gap:2px}}'
+  '@media(max-width:560px){.nav{gap:3px}.nav button{display:grid;gap:2px}}',
+  '.team-dashboard-card{padding-bottom:14px}.team-badge{white-space:nowrap}.team-statstrip{margin-top:14px;padding-top:12px;border-top:1px solid rgba(120,150,180,.16)}.team-statstrip .stat b{font-size:.94rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}.team-card-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}.team-action-btn{display:inline-flex;align-items:center;gap:7px}.team-remove-btn{margin-left:auto}',
+  '@media(max-width:560px){.team-statstrip{grid-template-columns:repeat(3,1fr);row-gap:10px}.team-statstrip .stat:nth-child(4){border-left:0}.team-card-actions{gap:6px}.team-remove-btn{margin-left:0}.team-remove-btn .btn-text{display:none}.team-remove-btn{padding-left:11px;padding-right:11px}}'
 ].join('\n');
 
-const [guardSource, venueLinksSource, cardActionsSource, cardActionsCss, gameNormalizationSource, playerNormalizationSource] = await Promise.all([
+const [guardSource, venueLinksSource, cardActionsSource, cardActionsCss, gameNormalizationSource, playerNormalizationSource, teamNormalizationSource] = await Promise.all([
   read('src/app/fetch-guard.js'),
   read('src/app/venue-links.js'),
   read('src/app/card-actions.js'),
   read('src/app/card-actions.css'),
   read('src/app/game-normalization.js'),
-  read('src/app/player-normalization.js')
+  read('src/app/player-normalization.js'),
+  read('src/app/team-normalization.js')
 ]);
-const [{ code: minGuard }, { code: minVenueLinks }, { code: minCardActions }, { code: minCardActionsCss }, { code: minGameNormalization }, { code: minPlayerNormalization }, { code: minFaCss }] = await Promise.all([
+const [{ code: minGuard }, { code: minVenueLinks }, { code: minCardActions }, { code: minCardActionsCss }, { code: minGameNormalization }, { code: minPlayerNormalization }, { code: minTeamNormalization }, { code: minFaCss }] = await Promise.all([
   transform(guardSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(venueLinksSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(cardActionsSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(cardActionsCss, { loader: 'css', minify: true }),
   transform(gameNormalizationSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(playerNormalizationSource, { loader: 'js', minify: true, target: 'es2022' }),
+  transform(teamNormalizationSource, { loader: 'js', minify: true, target: 'es2022' }),
   transform(faCssSource, { loader: 'css', minify: true })
 ]);
 const [existingAppCss, existingAppJs] = await Promise.all([
@@ -70,6 +76,7 @@ await Promise.all([
   writeDist('assets/card-actions.js', minCardActions),
   writeDist('assets/game-normalization.js', minGameNormalization),
   writeDist('assets/player-normalization.js', minPlayerNormalization),
+  writeDist('assets/team-normalization.js', minTeamNormalization),
   writeDist('assets/app.js', finalizedAppJs),
   writeDist('assets/app.css', `${existingAppCss}\n${minFaCss}\n${minCardActionsCss}`)
 ]);
@@ -80,6 +87,7 @@ const assetPaths = [
   'assets/drawer-navigation.js',
   'assets/game-normalization.js',
   'assets/player-normalization.js',
+  'assets/team-normalization.js',
   'assets/app.js',
   'assets/router.js',
   'assets/venue-links.js',
@@ -115,14 +123,14 @@ appHtml = appHtml
   .replace('<span class="nav-icon">🗓</span>', `<span class="nav-icon">${icon('calendar-days')}</span>`);
 appHtml = appHtml.replace(
   '<script src="../assets/foundation.js" defer></script>',
-  '<script src="../assets/fetch-guard.js" defer></script>\n<script src="../assets/foundation.js" defer></script>\n<script src="../assets/game-normalization.js" defer></script>\n<script src="../assets/player-normalization.js" defer></script>'
+  '<script src="../assets/fetch-guard.js" defer></script>\n<script src="../assets/foundation.js" defer></script>\n<script src="../assets/game-normalization.js" defer></script>\n<script src="../assets/player-normalization.js" defer></script>\n<script src="../assets/team-normalization.js" defer></script>'
 );
 appHtml = appHtml.replace(
   '<script src="../assets/diagnostics.js" defer></script>',
   '<script src="../assets/venue-links.js" defer></script>\n<script src="../assets/card-actions.js" defer></script>\n<script src="../assets/diagnostics.js" defer></script>'
 );
 appHtml = appHtml.replace(
-  /\.\.\/assets\/(?:app\.css|foundation\.js|drawer-navigation\.js|game-normalization\.js|player-normalization\.js|app\.js|router\.js|venue-links\.js|card-actions\.js|diagnostics\.js|fetch-guard\.js)(?:\?v=[a-f0-9]+)?/g,
+  /\.\.\/assets\/(?:app\.css|foundation\.js|drawer-navigation\.js|game-normalization\.js|player-normalization\.js|team-normalization\.js|app\.js|router\.js|venue-links\.js|card-actions\.js|diagnostics\.js|fetch-guard\.js)(?:\?v=[a-f0-9]+)?/g,
   match => versionAsset(match)
 );
 await writeDist('app/index.html', appHtml);

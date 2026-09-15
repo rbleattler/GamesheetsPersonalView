@@ -14,6 +14,7 @@ const required = [
   'assets/drawer-navigation.js',
   'assets/game-normalization.js',
   'assets/player-normalization.js',
+  'assets/team-normalization.js',
   'assets/app.js',
   'assets/router.js',
   'assets/venue-links.js',
@@ -38,6 +39,7 @@ const foundationJs = await readFile(join(dist, 'assets/foundation.js'), 'utf8');
 const drawerNavigationJs = await readFile(join(dist, 'assets/drawer-navigation.js'), 'utf8');
 const gameNormalizationJs = await readFile(join(dist, 'assets/game-normalization.js'), 'utf8');
 const playerNormalizationJs = await readFile(join(dist, 'assets/player-normalization.js'), 'utf8');
+const teamNormalizationJs = await readFile(join(dist, 'assets/team-normalization.js'), 'utf8');
 const venueLinksJs = await readFile(join(dist, 'assets/venue-links.js'), 'utf8');
 const cardActionsJs = await readFile(join(dist, 'assets/card-actions.js'), 'utf8');
 const diagnosticsJs = await readFile(join(dist, 'assets/diagnostics.js'), 'utf8');
@@ -49,12 +51,17 @@ if (!appHtml.includes('>V4.0</span>')) throw new Error('Visible application vers
 for (const iconClass of ['fa-house','fa-circle-question','fa-bars','fa-xmark','fa-users','fa-location-dot','fa-user','fa-calendar-days']) {
   if (!appHtml.includes(iconClass)) throw new Error(`App chrome is missing Font Awesome icon ${iconClass}.`);
 }
-if (!appHtml.includes('../assets/fetch-guard.js?v=') || !appHtml.includes('../assets/foundation.js?v=') || !appHtml.includes('../assets/drawer-navigation.js?v=') || !appHtml.includes('../assets/game-normalization.js?v=') || !appHtml.includes('../assets/player-normalization.js?v=') || !appHtml.includes('../assets/app.js?v=') || !appHtml.includes('../assets/router.js?v=') || !appHtml.includes('../assets/venue-links.js?v=') || !appHtml.includes('../assets/card-actions.js?v=') || !appHtml.includes('../assets/diagnostics.js?v=')) throw new Error('Versioned external app bundles are missing.');
+for (const iconClass of ['.fa-chart-line', '.fa-trash-can']) {
+  if (!appCss.includes(iconClass)) throw new Error(`App CSS is missing the Font Awesome icon glyph ${iconClass}.`);
+}
+if (!appHtml.includes('../assets/fetch-guard.js?v=') || !appHtml.includes('../assets/foundation.js?v=') || !appHtml.includes('../assets/drawer-navigation.js?v=') || !appHtml.includes('../assets/game-normalization.js?v=') || !appHtml.includes('../assets/player-normalization.js?v=') || !appHtml.includes('../assets/team-normalization.js?v=') || !appHtml.includes('../assets/app.js?v=') || !appHtml.includes('../assets/router.js?v=') || !appHtml.includes('../assets/venue-links.js?v=') || !appHtml.includes('../assets/card-actions.js?v=') || !appHtml.includes('../assets/diagnostics.js?v=')) throw new Error('Versioned external app bundles are missing.');
 const playerRuntimeIndex = appHtml.indexOf('../assets/player-normalization.js?v=');
 const appRuntimeIndex = appHtml.indexOf('../assets/app.js?v=');
 if (playerRuntimeIndex < 0 || appRuntimeIndex < 0 || playerRuntimeIndex > appRuntimeIndex) throw new Error('Player normalization runtime must load before the app bundle.');
 const drawerNavRuntimeIndex = appHtml.indexOf('../assets/drawer-navigation.js?v=');
 if (drawerNavRuntimeIndex < 0 || drawerNavRuntimeIndex > appRuntimeIndex) throw new Error('Drawer navigation runtime must load before the app bundle.');
+const teamNormRuntimeIndex = appHtml.indexOf('../assets/team-normalization.js?v=');
+if (teamNormRuntimeIndex < 0 || teamNormRuntimeIndex > appRuntimeIndex) throw new Error('Team normalization runtime must load before the app bundle.');
 if (!appHtml.includes('name="myhockeyhub-build"') || !homeHtml.includes('name="myhockeyhub-build"')) throw new Error('Static build marker is missing.');
 if (!homeHtml.includes('assets/site.css?v=')) throw new Error('Home stylesheet is not cache-busted.');
 if (!homeHtml.includes('href="app/"')) throw new Error('Home page app navigation is incomplete.');
@@ -66,6 +73,7 @@ if (!guardJs.includes('MyHockeyHubFetchGuard') || !guardJs.includes('AbortContro
 if (!drawerNavigationJs.includes('MyHockeyHubDrawerNavigation') || !drawerNavigationJs.includes('createDrawerNavigation')) throw new Error('Drawer navigation runtime was not emitted correctly.');
 if (!gameNormalizationJs.includes('MyHockeyHubGameNormalization') || !gameNormalizationJs.includes('gameBoxFromFirestore')) throw new Error('Game-detail normalization runtime was not emitted correctly.');
 if (!playerNormalizationJs.includes('MyHockeyHubPlayerNormalization') || !playerNormalizationJs.includes('normalizeStandingPlayer') || !playerNormalizationJs.includes('teamRosterFromGame') || !playerNormalizationJs.includes('playerGameActivity') || !playerNormalizationJs.includes('dedupePlayers') || !playerNormalizationJs.includes('canonicalPosition') || !playerNormalizationJs.includes('positionCode')) throw new Error('Player/roster normalization runtime was not emitted correctly.');
+if (!teamNormalizationJs.includes('MyHockeyHubTeamNormalization') || !teamNormalizationJs.includes('teamSeasonSummary')) throw new Error('Team normalization runtime was not emitted correctly.');
 if (!venueLinksJs.includes('livebarnVenues.v1') || !venueLinksJs.includes('gamecard') || !venueLinksJs.includes('LiveBarn venue')) throw new Error('Venue LiveBarn inference bridge was not emitted correctly.');
 if (!cardActionsJs.includes('game-action-row') || !cardActionsJs.includes('GameSheet') || !cardActionsJs.includes('LiveBarn')) throw new Error('Game-card action-row decorator was not emitted correctly.');
 if (!cardActionsJs.includes('fa-file-lines') || !cardActionsJs.includes('fa-circle-play') || cardActionsJs.includes('▶')) throw new Error('Game actions are not using Font Awesome glyphs.');
@@ -85,6 +93,14 @@ for (const goalieColumn of ['<th>SA</th>', '<th>GA</th>', '<th>MIN</th>']) {
 }
 if (!appJs.includes('MyHockeyHubDrawerNavigation.createDrawerNavigation') || !appJs.includes('MyHockeyHubDrawerNav') || !appJs.includes('backDrawer')) throw new Error('Drawer navigation stack was not wired into the running app.');
 if (!appJs.includes('MyHockeyHubPlayerNormalization.mergePlayerRecord')) throw new Error('Player registry is not using scope-aware merging.');
+if (!appJs.includes('MyHockeyHubTeamNormalization.teamSeasonSummary')) throw new Error('My Teams card is not using the team-season normalization helper.');
+if (!appJs.includes('team-dashboard-card') || !appJs.includes('team-statstrip') || !appJs.includes('team-card-actions')) throw new Error('My Teams card is missing the redesigned dashboard layout.');
+if (!appJs.includes('id="teamStatsBtn"') || !appJs.includes('id="teamRoster"')) throw new Error('My Teams card is missing the Roster/Stats action buttons.');
+if (appJs.includes('View full schedule') || appJs.includes('Browse players')) throw new Error('My Teams card still uses the old verbose action labels.');
+if (!appJs.includes('team-remove-btn')) throw new Error('My Teams card Remove action is missing its icon-only-on-mobile class.');
+for (const glyph of ['fa-calendar-days','fa-users','fa-chart-line','fa-trash-can']) {
+  if (!appJs.includes(glyph)) throw new Error(`My Teams card action row is missing the ${glyph} icon.`);
+}
 if (!appJs.includes('scheduleLoadMore') || !appJs.includes('data-schedule-more') || !appJs.includes('IntersectionObserver') || !appJs.includes('700px 0px')) throw new Error('Schedule progressive rendering was not emitted correctly.');
 if (appJs.includes('version:"3.6"') || appJs.includes('version:"4.0.0-beta.0"')) throw new Error('Generated app still reports a pre-V4 version.');
 for (const method of ['seasonInfo','seasonDivisions','unifiedGames','skaterStandings','goalieStandings','firestoreGame']) {
