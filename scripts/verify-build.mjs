@@ -81,16 +81,21 @@ if (!cardActionsJs.includes('addedNodes') || !cardActionsJs.includes('card-actio
 if (!appCss.includes('.game-action-row') || !appCss.includes('.game-meta-two') || !appCss.includes('[data-actions="1"]')) throw new Error('Game-card action-row styles were not emitted correctly.');
 if (!appCss.includes('.fa-icon') || !appCss.includes('.fa-house') || !appCss.includes('.fa-file-lines') || !appCss.includes('.fa-xmark') || !appCss.includes('data:image/svg+xml;base64')) throw new Error('Selected Font Awesome SVG glyphs were not bundled into app CSS.');
 if (!appCss.includes('.nav button') || !appCss.includes('gap:7px') || !appCss.includes('.close')) throw new Error('Desktop navigation or drawer-control spacing polish was not emitted.');
+if (!appCss.includes('.player-table-scroll table') || !appCss.includes('table-layout:fixed')) throw new Error('Player-table column-alignment CSS was not emitted correctly.');
+if (!appCss.includes('.my-team-switcher-select') || !appCss.includes('.my-team-switcher-pills')) throw new Error('Mobile My Teams switcher CSS was not emitted correctly.');
 if (!appJs.includes('MyHockeyHubFoundation')) throw new Error('App bundle is not using the shared foundation layer.');
 if (!appJs.includes('MyHockeyHubGameNormalization') || !appJs.includes('MyHockeyHubNormalizationParity') || !appJs.includes('Game normalization parity mismatch')) throw new Error('Game stats path is not routed through the normalized detail model with parity checking.');
 for (const playerMethod of ['normalizeStandingPlayer','teamRosterFromGame','playerEvents','playerGameActivity','dedupePlayers','normalizePlayer','positionCode']) {
   if (!appJs.includes(`MyHockeyHubPlayerNormalization.${playerMethod}`)) throw new Error(`Running player flow is not using ${playerMethod}.`);
 }
-if (!appJs.includes('<th>Pos</th>')) throw new Error('Game-stats player table is missing the position indicator column.');
-if (!appJs.includes('<th>SOG</th>')) throw new Error('Game-stats skater table is missing the SOG column.');
-for (const goalieColumn of ['<th>SA</th>', '<th>GA</th>', '<th>MIN</th>']) {
+if (!appJs.includes('>Pos</th>')) throw new Error('Game-stats player table is missing the position indicator column.');
+if (!appJs.includes('>SOG</th>')) throw new Error('Game-stats skater table is missing the SOG column.');
+for (const goalieColumn of ['>SA</th>', '>GA</th>', '>MIN</th>']) {
   if (!appJs.includes(goalieColumn)) throw new Error(`Game-stats goalie table is missing the ${goalieColumn} column.`);
 }
+if (!appJs.includes('player-table-scroll') || !appJs.includes('col-num') || !appJs.includes('col-icon') || !appJs.includes('col-team') || !appJs.includes('col-player') || !appJs.includes('col-narrow')) throw new Error('Game-stats player tables are missing the column-alignment classes.');
+if (!appJs.includes('id="myTeamSwitcher"') || !appJs.includes('my-team-switcher-select') || !appJs.includes('my-team-switcher-pills')) throw new Error('Mobile My Teams switcher dropdown was not wired into the running app.');
+if (appJs.includes('Open game on GameSheet')) throw new Error('Expanded timeline event still shows the redundant GameSheet link.');
 if (!appJs.includes('MyHockeyHubDrawerNavigation.createDrawerNavigation') || !appJs.includes('MyHockeyHubDrawerNav') || !appJs.includes('backDrawer')) throw new Error('Drawer navigation stack was not wired into the running app.');
 if (!appJs.includes('MyHockeyHubPlayerNormalization.mergePlayerRecord')) throw new Error('Player registry is not using scope-aware merging.');
 if (!appJs.includes('MyHockeyHubTeamNormalization.teamSeasonSummary')) throw new Error('My Teams card is not using the team-season normalization helper.');
