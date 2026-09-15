@@ -9,7 +9,10 @@
     if (!player) return '';
     const first = player.firstName || '';
     const last = player.lastName || '';
-    return (player.name || player.title || `${first} ${last}`).trim();
+    const name = (player.name || player.title || `${first} ${last}`).trim();
+    if (name) return name;
+    const number = player.number ?? player.jersey ?? '';
+    return number !== '' ? `#${number}` : '';
   }
 
   function statPlayer(player) {
@@ -63,6 +66,20 @@
       w: stats.w ?? stats.wins ?? row.wins ?? '—',
       so: stats.so ?? stats.shutouts ?? row.shutouts ?? '—',
       saves: stats.saves ?? stats.sv ?? player.saves ?? player.sv ?? row.saves ?? row.sv ?? '—'
+    };
+  }
+
+  function normalizeStandingPlayer(raw, options = {}) {
+    const row = raw || {};
+    const player = row.player || row.skater || row.goalie || row;
+    const stats = row.stats || player.stats || row;
+    return {
+      ...normalizePlayer(row, options),
+      g: numberOrZero(stats.g ?? stats.goals),
+      a: numberOrZero(stats.a ?? stats.assists),
+      pts: numberOrZero(stats.pts ?? stats.points),
+      pim: numberOrZero(stats.pim),
+      sog: numberOrZero(stats.sog ?? stats.shots)
     };
   }
 
@@ -154,7 +171,9 @@
     const raw = (decodedGame?.data?.[side]?.lineup?.players || [])
       .find(candidate => String(candidate?.id || '') === playerId);
     if (!raw) return null;
+    const fallbackKind = player?.kind || (String(player?.position || '').toLowerCase().includes('goalie') ? 'goalie' : '');
     const normalized = normalizePlayer(raw, {
+      kind: fallbackKind,
       team,
       teamId: team?.id,
       division: team?.division,
@@ -201,7 +220,7 @@
       if (!player?.id) continue;
       const key = String(player.id);
       const existing = map.get(key);
-      const score = value => Object.values(value || {}).filter(item => item !== '' && item != null && item !== '—').length;
+      const score = value => Object.values(value || {}).filter(item => item !== '' && item != null).length;
       if (!existing || score(player) > score(existing)) map.set(key, player);
     }
     return [...map.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
@@ -212,6 +231,7 @@
     playerName,
     statPlayer,
     normalizePlayer,
+    normalizeStandingPlayer,
     normalizeRoster,
     sideForTeam,
     sideForPlayer,
