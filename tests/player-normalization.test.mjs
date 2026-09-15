@@ -37,6 +37,19 @@ test('normalizes roster players into a stable app shape',()=>{
   assert.equal(players[1].saves,22);
 });
 
+test('canonicalizes hockey positions for display and shorthand',()=>{
+  assert.equal(normalize.canonicalPosition('defence'),'Defense');
+  assert.equal(normalize.canonicalPosition('DEFENCEMAN'),'Defense');
+  assert.equal(normalize.canonicalPosition('centre'),'Forward');
+  assert.equal(normalize.canonicalPosition('left wing'),'Forward');
+  assert.equal(normalize.canonicalPosition('goalie'),'Goalie');
+  assert.equal(normalize.canonicalPosition('', 'skater'),'Skater');
+  assert.equal(normalize.positionCode('defence'),'D');
+  assert.equal(normalize.positionCode('Forward'),'F');
+  assert.equal(normalize.positionCode('Goalie'),'G');
+  assert.equal(normalize.positionCode('', 'skater'),'S');
+});
+
 test('preserves standing-row numeric defaults while using the stable player shape',()=>{
   const player=normalize.normalizeStandingPlayer({
     player:{id:'30',firstName:'Taylor',lastName:'Skater',teamId:'V'},
@@ -44,6 +57,7 @@ test('preserves standing-row numeric defaults while using the stable player shap
     stats:{g:2,a:3}
   },{kind:'skater',team:game.visitor,division:game.visitor.division,divisionId:'12'});
   assert.equal(player.teamTitle,'Visitors');
+  assert.equal(player.position,'Skater');
   assert.equal(player.g,2);
   assert.equal(player.a,3);
   assert.equal(player.pts,0);
@@ -52,7 +66,7 @@ test('preserves standing-row numeric defaults while using the stable player shap
 
 test('standing rows retain fallback team and division metadata',()=>{
   const player=normalize.normalizeStandingPlayer({
-    player:{id:'31',firstName:'Fallback',lastName:'Player',teamId:'V'},
+    player:{id:'31',firstName:'Fallback',lastName:'Player',teamId:'V',position:'defence'},
     teamId:'V',
     division:{id:'12'},
     stats:{pts:4}
@@ -61,6 +75,7 @@ test('standing rows retain fallback team and division metadata',()=>{
   assert.equal(player.teamTitle,'Visitors');
   assert.equal(player.teamLogo,'v.png');
   assert.equal(player.divisionTitle,'12U A');
+  assert.equal(player.position,'Defense');
 });
 
 test('extracts a team roster from decoded game data',()=>{
@@ -69,6 +84,7 @@ test('extracts a team roster from decoded game data',()=>{
   assert.equal(roster[0].id,'20');
   assert.equal(roster[0].teamId,'H');
   assert.equal(roster[0].teamTitle,'Home');
+  assert.equal(roster[0].position,'Defense');
 });
 
 test('normalizes player goal and assist events in game order',()=>{
@@ -97,13 +113,16 @@ test('recent-game activity can preserve a known goalie classification when game 
   assert.equal(activity.sv,22);
 });
 
-test('dedupes players by id and keeps the richer record',()=>{
+test('dedupe merges complementary position metadata instead of dropping it',()=>{
   const rows=normalize.dedupePlayers([
-    {id:'10',name:'Alex Visitor',teamTitle:''},
-    {id:'10',name:'Alex Visitor',teamTitle:'Visitors',number:'10'},
-    {id:'20',name:'Sam Home'}
+    {id:'10',name:'Alex Visitor',teamTitle:'Visitors',number:'10',position:'',g:4,a:2,pts:6,kind:'skater'},
+    {id:'10',name:'Alex Visitor',teamTitle:'Visitors',number:'10',position:'defence',kind:'skater'},
+    {id:'20',name:'Sam Home',kind:'skater'}
   ]);
   assert.equal(rows.length,2);
   assert.equal(rows[0].id,'10');
   assert.equal(rows[0].teamTitle,'Visitors');
+  assert.equal(rows[0].g,4);
+  assert.equal(rows[0].position,'Defense');
+  assert.equal(rows[1].position,'Skater');
 });
